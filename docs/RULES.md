@@ -6,8 +6,9 @@ Split HTML `.root` components containing `.root-mark` or `.radicand` receive a
 construction warning: independently aligned glyphs and CSS borders need review.
 SVG radicals marked `data-b35-diagram="radical"` must identify the sign path with
 `data-b35-radical-sign` and radicand text with `data-b35-radicand`. Their rendered
-boxes are checked for radicands extending above/below the sign, beyond the bar,
-or horizontally outside the SVG. Missing markers also warn.
+boxes are checked for radicands extending above the sign, beyond the bar,
+or outside the SVG. Text descenders may extend below the hook when they remain
+inside the SVG. Missing markers also warn.
 
 Configure `complementaryChecks.symbolRendering.radicalGeometryEnabled` (default
 true), `thresholds.radicalGeometryTolerancePx` (default 2), and
