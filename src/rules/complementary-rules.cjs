@@ -81,6 +81,100 @@ function auditComplementaryChecks(config) {
       issues.push({rule,severity,message,slide:slide.id,runtimeSlide:slides.indexOf(slide)+1,
         header:(slide.querySelector(config.selectors.header)?.textContent||'').trim(),selector:pathFor(node),evidence,...guidance});
     };
+    const quality=settings.contentQuality;
+    if(quality?.enabled){
+      const tolerance=(quality.tolerancePx??2)*scale;
+      const guidance={expected:'Teaching content remains inside its own panel, clear of unrelated panels, with consistent declared fonts and reveal dependencies.',
+        impact:'Cross-panel text, inconsistent glyphs and premature explanations disrupt reading and teaching sequence.',
+        suggestedAction:'Repair the shared component layout or font role; reserve natural text height and reveal explanations only after their declared prerequisites.',
+        confidence:'Rendered DOM/content geometry and explicit contracts; not optical or semantic certification.',
+        verification:['Inspect every meaningful reveal at the intended viewport after fonts settle.','Recheck panel boundaries, mathematical notation and declared teaching order.'],
+        constraints:['Do not change mathematical values or auto-delete content.','Intentional variation requires a documented exception; no screenshot approval is inferred.']};
+      const panels=select(slide,quality.panelSelectors).filter(n=>visible(n)&&!n.closest('[data-b35-allow-content-overlap]'));
+      const samples=panels.map(node=>({node,box:rect(node),content:contentBounds(node,scale).box}));
+      for(const {node,box,content} of samples){
+        if(!content)continue;
+        const overflow={left:Math.max(0,box.left-content.left)/scale,right:Math.max(0,content.right-box.right)/scale,
+          top:Math.max(0,box.top-content.top)/scale,bottom:Math.max(0,content.bottom-box.bottom)/scale};
+        if(Object.values(overflow).some(v=>v>(quality.tolerancePx??2)))emit('B35-LAYOUT-004',policy.contentPanelBoundsSeverity||'warning',
+          'Rendered teaching content extends outside its panel.',node,{kind:'content-outside-panel',overflowPx:overflow,panelBox:box,contentBox:content},guidance);
+        for(const other of samples){
+          if(other.node===node||node.contains(other.node)||other.node.contains(node))continue;
+          // Normal labels that share a panel are excluded by ancestry. For
+          // unrelated panels inspect actual content, not only box edges.
+          const width=Math.min(content.right,other.box.right)-Math.max(content.left,other.box.left);
+          const height=Math.min(content.bottom,other.box.bottom)-Math.max(content.top,other.box.top);
+          if(width>tolerance&&height>tolerance)emit('B35-LAYOUT-005',policy.contentPanelOverlapSeverity||'warning',
+            'Teaching content overlaps another panel.',node,{kind:'content-cross-panel',otherSelector:pathFor(other.node),overlapPx:{width:width/scale,height:height/scale}},guidance);
+        }
+      }
+      const fontIgnore='sup,sub,.power,.tag,.answer-tag,.practice-num,.hi-wm,.nav,svg[data-b35-diagram="radical"]';
+      for(const [selectors,expectedFamily,role]of [[quality.mathSelectors,quality.mathFontFamily,'math'],[quality.proseSelectors,quality.proseFontFamily,'prose']]){
+        if(!selectors||!expectedFamily)continue;
+        const mismatches=new Map();
+        for(const owner of select(slide,selectors))for(const node of [owner,...owner.querySelectorAll('*')]){
+          if(!visible(node)||node.closest(fontIgnore)||node.closest('[data-b35-allow-font-family]'))continue;
+          if(![...node.childNodes].some(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim()))continue;
+          const actual=getComputedStyle(node).fontFamily.split(',')[0].replace(/["']/g,'').trim();
+          if(actual.toLowerCase()!==expectedFamily.toLowerCase())mismatches.set(node,actual);
+        }
+        for(const [node,actual]of mismatches)emit('B35-TYPE-002',policy.requiredFontFamilySeverity||'warning',
+          `${role} text declares ${actual}; expected ${expectedFamily}.`,node,
+          {kind:'required-role-font-family',role,actualFamily:actual,expectedFamily,source:'computed primary declared family; fallback glyph font not verified'},guidance);
+      }
+      const dependencies=[...(quality.revealDependencies||[]),...select(slide,'[data-b35-after]').map(n=>({node:n,after:n.getAttribute('data-b35-after')}))];
+      for(const dependency of dependencies){
+        const targets=dependency.node?[dependency.node]:select(slide,dependency.selector);
+        for(const node of targets){
+          if(!visible(node)||node.closest('[data-b35-allow-reveal-order]'))continue;
+          let prerequisite=null;try{prerequisite=slide.querySelector(dependency.after);}catch{}
+          let reason=!prerequisite?'Missing or invalid reveal prerequisite.':!visible(prerequisite)?'Explanation is visible before its prerequisite.':null;
+          if(!reason&&dependency.requireComplete){
+            const pending=select(prerequisite,'[data-step]').filter(n=>!visible(n));
+            if(pending.length)reason='Explanation is visible before its prerequisite sequence is complete.';
+          }
+          if(reason)emit('B35-REVEAL-002',policy.revealDependencySeverity||'error',reason,node,
+            {kind:'declared-reveal-dependency',after:dependency.after,prerequisiteExists:!!prerequisite,requireComplete:!!dependency.requireComplete},guidance);
+        }
+      }
+    }
+    const hierarchy=settings.typographyHierarchy;
+    if(hierarchy?.enabled){
+      const roles=hierarchy.roles||[],tolerance=hierarchy.tolerancePx??.5;
+      const candidates=new Set(roles.flatMap(role=>select(slide,role.selector)));
+      const structural='sup,sub,mfrac,msup,msub,msubsup,mroot,.power,.tag,.answer-tag,.practice-num,.hi-wm,.nav,svg[data-b35-diagram="radical"]';
+      for(const node of candidates){
+        if(!visible(node)||node.closest('[data-b35-allow-type-size]')||node.closest(structural))continue;
+        const explicit=node.getAttribute('data-b35-content-role');
+        const role=explicit?roles.find(r=>r.name===explicit):roles.find(r=>node.matches(r.selector));
+        if(!role)continue;
+        const minimum=role.minimumPx??role.sizePx,maximum=role.maximumPx??role.sizePx;
+        if(!Number.isFinite(minimum)||!Number.isFinite(maximum))continue;
+        // Check the role owner plus direct base-text descendants; exclude
+        // nested roles and structural fraction/exponent/label reductions.
+        const measurements=[];
+        for(const item of [node,...node.querySelectorAll('*')]){
+          if(!visible(item)||item.closest(structural)||item.closest('[data-b35-allow-type-size]'))continue;
+          if(item!==node){
+            let ancestor=item;let nested=false;
+            while(ancestor&&ancestor!==node){if(candidates.has(ancestor)){nested=true;break;}ancestor=ancestor.parentElement;}
+            if(nested)continue;
+          }
+          if(![...item.childNodes].some(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim()))continue;
+          const actual=parseFloat(getComputedStyle(item).fontSize);
+          if(actual<minimum-tolerance||actual>maximum+tolerance)measurements.push({selector:pathFor(item),fontSizePx:actual});
+        }
+        if(measurements.length)emit('B35-TYPE-001',policy.typographyHierarchySeverity||'warning',
+          `${role.name} text must use ${minimum===maximum?minimum:minimum+'–'+maximum}px at the lesson design size.`,node,
+          {kind:'content-role-font-size',role:role.name,minimumPx:minimum,maximumPx:maximum,tolerancePx:tolerance,measurements},
+          {expected:'Apply the configured size for this content role consistently across slides.',
+            impact:'Oversized or undersized solutions disrupt readability and question/answer hierarchy.',
+            suggestedAction:'Use a shared role style. Restructure crowded content instead of shrinking equations to fit.',
+            confidence:'Computed CSS base sizes in design pixels; structural scripts, fraction parts and nested roles excluded.',
+            verification:['Re-render every affected reveal state and check panel fit.','Review mathematical glyph sizes and supported viewport scaling.'],
+            constraints:['Preserve mathematical content and reveal order.','Not optical font-size certification; unmarked content may need explicit role annotations.']});
+      }
+    }
     const commonSafeguards=['Preserve mathematical values, units, diagrams and reveal order. Do not auto-fix lesson content.',
       'Compare like footer roles only; use a documented design exception for an intentional variation.'];
     if(settings.footersEnabled!==false){
@@ -149,6 +243,34 @@ function auditComplementaryChecks(config) {
 
     const symbols=settings.symbolRendering||{};
     if(symbols.enabled===false)continue;
+    // A split glyph + CSS border is fragile even with matching font weights.
+    // Declared SVG radicals expose geometry; neither check certifies optics.
+    if(symbols.radicalGeometryEnabled!==false){
+      for(const node of select(slide,'.root,svg[data-b35-diagram="radical"]')){
+        if(!visible(node)||node.closest('[data-b35-allow-radical-variation]'))continue;
+        const split=node.matches('.root')&&!!node.querySelector('.root-mark,.radicand');
+        const sign=node.querySelector('[data-b35-radical-sign]'),radicand=node.querySelector('[data-b35-radicand]');
+        let reason=split?'Radical uses a separate text glyph and CSS overbar.':null;
+        let measurement=null;
+        if(!split&&sign&&radicand){
+          const a=rect(sign),b=rect(radicand),v=node.getBoundingClientRect();
+          measurement={signBox:a,radicandBox:b,svgBox:rect(node)};
+          const t=limits.radicalGeometryTolerancePx??2;
+          // Text line boxes may extend below the radical hook because of
+          // descenders/leading. Compare the bottom against the SVG instead.
+          if(b.top<a.top-t*scale||b.right>a.right+t*scale||b.bottom>v.bottom+t*scale||b.left<v.left-t*scale||b.right>v.right+t*scale)
+            reason='Radicand extends beyond its declared radical sign or SVG bounds.';
+        }else if(!split)reason='Declared SVG radical is missing sign or radicand geometry markers.';
+        if(reason)emit('B35-MATH-020',policy.radicalGeometrySeverity||'warning',reason,node,
+          {kind:'radical-construction',renderer:split?'split HTML/CSS':'declared SVG',measurement,visualAppearanceVerified:false},
+          {expected:'Use a coherent radical renderer with a continuous hook/overbar enclosing the complete radicand.',
+            impact:'Detached bars, oversized hooks or displaced radicands can make the expression ambiguous.',
+            suggestedAction:'Render the radical as one native math structure or one SVG; inspect hook/bar joins, stroke balance and radicand clearance at normal size.',
+            confidence:'Construction/geometry heuristic; native MathML and passing SVG geometry do not establish optical correctness.',
+            verification:['Review the complete expression at the intended viewport.','Check every reveal state and remeasure after fonts load.'],
+            constraints:['Do not change mathematical content.','No screenshot pixel analysis or automatic visual approval.']});
+      }
+    }
     const groups=new Map();
     for(const node of select(slide,symbols.selectors||'msqrt,mroot,mfrac,.root,.frac,[data-b35-math-symbol],svg text')){
       const rawBox=rect(node),rawStyle=getComputedStyle(node);

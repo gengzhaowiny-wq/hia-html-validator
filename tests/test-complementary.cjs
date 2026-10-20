@@ -7,6 +7,8 @@ const fraction='<math><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>=</mo><mn>0.5</mn><
 const wrap=(content,css='')=>`<!doctype html><html><head><style>*{box-sizing:border-box}body{margin:0;font:18px Arial}.slide{width:960px;height:540px;transform-origin:top left}.four{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{height:230px;padding:10px;display:flex;flex-direction:column;justify-content:space-between}.mini{height:64px;flex:none;padding:8px;display:flex;align-items:center;justify-content:center;text-align:center;font:700 18px/24px Arial}.content{display:block}math{font-size:inherit} ${css}</style></head><body><section id="fixture" class="slide active"><div class="hdr">Complementary check fixture</div>${content}</section></body></html>`;
 const cards=(contents=['x = 1','y = 2','z = 3','a = 4'])=>'<div class="four">'+contents.map((text,i)=>`<div class="card"><h3>Card ${i+1}</h3><div class="mini"><span class="content">${text}</span></div></div>`).join('')+'</div>';
 const clone=()=>structuredClone(config);
+// Earlier suites isolate their own contracts; quality fixtures opt in below.
+config.complementaryChecks.contentQuality.enabled=false;
 (async()=>{const browser=await chromium.launch(),results=[];try{
   const page=await browser.newPage({viewport:{width:1920,height:1080}});
   async function check(name,html,verify,options=config){await page.setContent(html);await page.evaluate(()=>document.fonts.ready);const findings=await page.evaluate(auditComplementaryChecks,options);verify(findings);results.push({name,passed:true,findings});return findings;}
@@ -73,6 +75,38 @@ const clone=()=>structuredClone(config);
     const findings=await check(rule+' supplies LLM-actionable evidence',wrap(cards(['x = 1','x = 2',root,root]),'.card:first-child .mini{font-size:13px;height:32px;justify-content:flex-start}'),xs=>assert.ok(has(xs,rule)));
     const f=findings.find(x=>x.rule===rule);for(const field of ['selector','expected','impact','suggestedAction','confidence'])assert.ok(f[field]);assert.ok(f.verification.length>=2);assert.ok(f.constraints.length>=2);
   }
+  await check('split glyph radical receives actionable construction warning',wrap('<span class="root"><span class="root-mark">√</span><span class="radicand">x</span></span>'),xs=>assert.ok(has(xs,'B35-MATH-020')));
+  const radicalSvg='<svg data-b35-diagram="radical" width="100" height="40" viewBox="0 0 100 40"><path data-b35-radical-sign d="M1 20 L5 16 L10 30 L18 2 H98" fill="none" stroke="black"/><text data-b35-radicand x="22" y="26">x</text></svg>';
+  await check('coherent SVG radical geometry does not trigger construction warning',wrap(radicalSvg),xs=>assert.equal(has(xs,'B35-MATH-020'),false));
+  await check('radicand beyond bar is detected',wrap(radicalSvg.replace('x="22"','x="110"')),xs=>assert.ok(has(xs,'B35-MATH-020')));
+  await check('documented radical construction exception is respected',wrap('<span class="root" data-b35-allow-radical-variation="notation comparison"><span class="root-mark">√</span><span class="radicand">x</span></span>'),xs=>assert.equal(has(xs,'B35-MATH-020'),false));
+  await check('role sizes match the agreed lesson hierarchy',wrap('<div class="prompt" style="font-size:24px">x = 1</div><div class="eq" style="font-size:22px">x = 1</div><div class="note" style="font-size:16px">Check</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
+  await check('oversized solution is detected',wrap('<div class="eq" style="font-size:34px">x = 1</div>'),xs=>assert.ok(has(xs,'B35-TYPE-001')));
+  await check('undersized solution is detected',wrap('<div class="eq" style="font-size:13px">x = 1</div>'),xs=>assert.ok(has(xs,'B35-TYPE-001')));
+  await check('scaled slide retains design font sizes',wrap('<div class="eq" style="font-size:22px">x = 1</div>','.slide{transform:scale(.5)}'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
+  await check('fraction and exponent reductions are structural',wrap('<div class="eq" style="font-size:22px">x<sup style="font-size:10px">2</sup> = <math><mfrac><mn>1</mn><mn>2</mn></mfrac></math></div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
+  await check('nested base text size override is detected',wrap('<div class="eq" style="font-size:22px">x = <span style="font-size:32px">1</span></div>'),xs=>assert.ok(has(xs,'B35-TYPE-001')));
+  await check('hidden oversized solution ignored',wrap('<div class="eq" style="visibility:hidden;font-size:34px">x = 1</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
+  await check('explicit role overrides inferred solution role',wrap('<div class="eq" data-b35-content-role="note" style="font-size:16px">x = 1</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
+  await check('intentional type size exception respected',wrap('<div class="eq" data-b35-allow-type-size="cover example" style="font-size:34px">x = 1</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
+  const hierarchyOff=clone();hierarchyOff.complementaryChecks.typographyHierarchy.enabled=false;
+  await check('hierarchy can be disabled',wrap('<div class="eq" style="font-size:34px">x = 1</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false),hierarchyOff);
+  const quality=clone();quality.complementaryChecks.contentQuality.enabled=true;
+  await check('text ink outside a fixed-height panel is detected',wrap('<div class="card" style="height:22px;width:200px;padding:0"><div style="font-size:32px">Long working</div></div>'),xs=>assert.ok(has(xs,'B35-LAYOUT-004')),quality);
+  await check('content in one panel crossing an unrelated panel is detected',wrap('<div class="card" style="height:20px;width:300px;padding:0"><div style="font-size:36px">Working</div></div><div class="note" style="height:40px;width:300px;font-size:16px">Next explanation</div>'),xs=>assert.ok(has(xs,'B35-LAYOUT-005')),quality);
+  await check('ordinary nonoverlapping panels pass geometry checks',wrap('<div class="card">Working</div><div class="note" style="font-size:16px">Check</div>'),xs=>assert.equal(xs.some(x=>['B35-LAYOUT-004','B35-LAYOUT-005'].includes(x.rule)),false),quality);
+  await check('declared intentional overlap is respected',wrap('<div class="card" data-b35-allow-content-overlap="overlay example" style="height:12px;padding:0"><span style="font-size:36px">Working</span></div>'),xs=>assert.equal(xs.some(x=>['B35-LAYOUT-004','B35-LAYOUT-005'].includes(x.rule)),false),quality);
+  await check('wrong mathematical family is detected including denominator',wrap('<div class="eq" style="font:22px Cambria Math">x = <math style="font-family:Cambria Math"><mfrac><mn>3</mn><mi style="font-family:Arial">x</mi></mfrac></math></div>'),xs=>assert.ok(has(xs,'B35-TYPE-002')),quality);
+  await check('correct mathematical role family passes',wrap('<div class="eq" style="font:22px Cambria Math">x = 3</div>'),xs=>assert.equal(has(xs,'B35-TYPE-002'),false),quality);
+  await check('hidden font mismatch ignored',wrap('<div class="eq" style="visibility:hidden;font:22px Arial">x = 3</div>'),xs=>assert.equal(has(xs,'B35-TYPE-002'),false),quality);
+  await check('intentional font variation respected',wrap('<div class="eq" data-b35-allow-font-family="font comparison" style="font:22px Arial">x = 3</div>'),xs=>assert.equal(has(xs,'B35-TYPE-002'),false),quality);
+  await check('premature explanation dependency is detected',wrap('<div id="working" style="visibility:hidden">x = 3</div><p data-b35-after="#working">Collect the repeated object</p>'),xs=>assert.ok(has(xs,'B35-REVEAL-002')),quality);
+  await check('revealed prerequisite allows its explanation',wrap('<div id="working">x = 3</div><p data-b35-after="#working">Now explain</p>'),xs=>assert.equal(has(xs,'B35-REVEAL-002'),false),quality);
+  await check('missing prerequisite is actionable',wrap('<p data-b35-after="#missing">Explain</p>'),xs=>assert.ok(has(xs,'B35-REVEAL-002')),quality);
+  const complete=structuredClone(quality);complete.complementaryChecks.contentQuality.revealDependencies=[{selector:'.explanation',after:'#working',requireComplete:true}];
+  await check('unfinished working sequence blocks explanation',wrap('<div id="working">Question<span data-step="1" style="visibility:hidden">Result</span></div><p class="explanation">Explain</p>'),xs=>assert.ok(has(xs,'B35-REVEAL-002')),complete);
+  const custom=structuredClone(quality);custom.complementaryChecks.contentQuality.mathFontFamily='Arial';
+  await check('required maths family is configurable',wrap('<div class="eq" style="font:22px Arial">x = 3</div>'),xs=>assert.equal(has(xs,'B35-TYPE-002'),false),custom);
   const lessonIndex=process.argv.indexOf('--chapter8');
   if(lessonIndex>=0){
     await page.setViewportSize({width:960,height:540});await page.goto(pathToFileURL(path.resolve(process.argv[lessonIndex+1])).href);await page.evaluate(()=>document.fonts.ready);

@@ -1,5 +1,92 @@
 # Detailed validation rules
 
+## General lesson content contracts
+
+The following rules use shared component selectors or explicit declarations,
+never chapter names, slide IDs, page numbers or lesson wording. Defaults target
+HI Academy lessons; general HTML disables `contentQuality` by default.
+
+| Concern | Rule |
+|---|---|
+| Content outside its question/solution panel | B35-LAYOUT-004 |
+| Content crosses an unrelated panel | B35-LAYOUT-005 |
+| Large answer panel uses only a small top region | Existing B35-COMPOSITION-001: low occupancy / excessive bottom whitespace |
+| Wrong role-specific font, including numerator/denominator variables | B35-TYPE-002 |
+| Inconsistent role sizes across pages | B35-TYPE-001 |
+| Explanation visible before required working is ready | B35-REVEAL-002 |
+| Fragile radical construction / declared SVG bounds | B35-MATH-020, with B35-MATH-019 optical review |
+
+Configure `complementaryChecks.contentQuality` with `enabled`, `tolerancePx`,
+`panelSelectors`, `mathSelectors`, `mathFontFamily`, `proseSelectors`,
+`proseFontFamily`, and `revealDependencies`. Math defaults to Cambria Math;
+explicit prose roles default to Nunito. Both are configurable, not hard-coded
+universal font requirements. `B35-TYPE-002` checks computed primary declarations
+on visible text, including MathML fraction tokens. Actual glyph fallback is not
+verified. Decorative labels, script-size tokens and generated radical SVG text
+are excluded. Use `data-b35-allow-font-family` for a documented variation.
+
+Panel checks use rendered content bounds (text ranges, canvas metrics, MathML
+and graphic boxes), with tolerance in slide design pixels. Ancestor/descendant
+panels are not treated as unrelated overlaps. Intentional overlays may declare
+`data-b35-allow-content-overlap`. These warning heuristics are not pixel-perfect
+collision detection; bounding-box whitespace and complex diagrams need review.
+
+Reveal dependencies are explicit to avoid guessing pedagogical intent from
+English wording. For example, an explanation with `data-b35-after="#result"`
+must not be visible until the element `#result` is visible on the same slide.
+Alternatively configure `{ "selector": ".explanation", "after": ".working",
+"requireComplete": true }` to require all descendant reveal elements of the
+working container to be visible. Missing/invalid prerequisite selectors also
+report. Exceptions may use `data-b35-allow-reveal-order`. Unannotated semantic
+teaching order still needs review.
+
+Severities: `contentPanelBoundsSeverity`, `contentPanelOverlapSeverity`, and
+`requiredFontFamilySeverity` default to warning; `revealDependencySeverity`
+defaults to error. These contracts run at each visited state; composition
+occupancy is intentionally final-state only, so hidden answers are not penalised.
+
+## Content font-size hierarchy — B35-TYPE-001
+
+Lesson defaults enforce design CSS pixel sizes: heading 18, main question 24,
+worked solution 22, explanation/instructions 18, notes/checks 16, diagram labels
+14–16, citations 11. These defaults target the 960×540 lesson system. Scaling a
+slide does not change its design-size requirement. General HTML disables this
+lesson-specific policy by default.
+
+Configure `complementaryChecks.typographyHierarchy`: `enabled`, `tolerancePx`
+(default 0.5), and `roles` entries with `name`, `selector`, `sizePx` or
+`minimumPx`/`maximumPx`. Arrays replace defaults. Severity is configured through
+`policy.typographyHierarchySeverity` (default warning). Explicit
+`data-b35-content-role` wins over inferred roles; otherwise the first matching
+configured role wins. `.eq` takes precedence over `.step-solution`.
+
+The audit checks visible direct base text and descendants, excluding nested
+roles, fraction parts, superscripts, subscripts, radical indices, UI tags and
+watermarks. SVG radical text is excluded because its viewBox uses different
+coordinate units. Arbitrary graphics need review. A documented intentional
+exception may use `data-b35-allow-type-size` on its container. No lesson is edited
+automatically. Resize or restructure crowded content and recheck bounds; never
+shrink maths merely to remove overflow. This checks computed base size, not
+optical glyph height or actual font fallback.
+
+## Radical construction — B35-MATH-020
+
+Split HTML `.root` components containing `.root-mark` or `.radicand` receive a
+construction warning: independently aligned glyphs and CSS borders need review.
+SVG radicals marked `data-b35-diagram="radical"` must identify the sign path with
+`data-b35-radical-sign` and radicand text with `data-b35-radicand`. Their rendered
+boxes are checked for radicands extending above the sign, beyond the bar,
+or outside the SVG. Text descenders may extend below the hook when they remain
+inside the SVG. Missing markers also warn.
+
+Configure `complementaryChecks.symbolRendering.radicalGeometryEnabled` (default
+true), `thresholds.radicalGeometryTolerancePx` (default 2), and
+`policy.radicalGeometrySeverity` (default warning). An intentional construction
+comparison may use `data-b35-allow-radical-variation` with a documented reason.
+This heuristic does not measure screenshot pixels, hook/bar connectivity or
+optical stroke balance, and does not certify native MathML. Review the complete
+expression after fonts settle; existing B35-MATH-019 review gates remain active.
+
 For installation and everyday use, start with [README.md](../README.md). LLM assistants should also read [AGENTS.md](../AGENTS.md).
 
 **Installable terminal package (v1.6.1):** see [installation and command-line guide](CLI_GUIDE.md). Run `hia-html-validator file.html`; auto mode selects the existing B35 lesson checks or a bounded general-HTML profile. Reports remain diagnostic, not automatic visual approval. The direct commands below retain the original lesson-only entry point.
