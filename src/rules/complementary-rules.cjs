@@ -81,6 +81,43 @@ function auditComplementaryChecks(config) {
       issues.push({rule,severity,message,slide:slide.id,runtimeSlide:slides.indexOf(slide)+1,
         header:(slide.querySelector(config.selectors.header)?.textContent||'').trim(),selector:pathFor(node),evidence,...guidance});
     };
+    const hierarchy=settings.typographyHierarchy;
+    if(hierarchy?.enabled){
+      const roles=hierarchy.roles||[],tolerance=hierarchy.tolerancePx??.5;
+      const candidates=new Set(roles.flatMap(role=>select(slide,role.selector)));
+      const structural='sup,sub,mfrac,msup,msub,msubsup,mroot,.power,.tag,.answer-tag,.practice-num,.hi-wm,.nav,svg[data-b35-diagram="radical"]';
+      for(const node of candidates){
+        if(!visible(node)||node.closest('[data-b35-allow-type-size]')||node.closest(structural))continue;
+        const explicit=node.getAttribute('data-b35-content-role');
+        const role=explicit?roles.find(r=>r.name===explicit):roles.find(r=>node.matches(r.selector));
+        if(!role)continue;
+        const minimum=role.minimumPx??role.sizePx,maximum=role.maximumPx??role.sizePx;
+        if(!Number.isFinite(minimum)||!Number.isFinite(maximum))continue;
+        // Check the role owner plus direct base-text descendants; exclude
+        // nested roles and structural fraction/exponent/label reductions.
+        const measurements=[];
+        for(const item of [node,...node.querySelectorAll('*')]){
+          if(!visible(item)||item.closest(structural)||item.closest('[data-b35-allow-type-size]'))continue;
+          if(item!==node){
+            let ancestor=item;let nested=false;
+            while(ancestor&&ancestor!==node){if(candidates.has(ancestor)){nested=true;break;}ancestor=ancestor.parentElement;}
+            if(nested)continue;
+          }
+          if(![...item.childNodes].some(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim()))continue;
+          const actual=parseFloat(getComputedStyle(item).fontSize);
+          if(actual<minimum-tolerance||actual>maximum+tolerance)measurements.push({selector:pathFor(item),fontSizePx:actual});
+        }
+        if(measurements.length)emit('B35-TYPE-001',policy.typographyHierarchySeverity||'warning',
+          `${role.name} text must use ${minimum===maximum?minimum:minimum+'–'+maximum}px at the lesson design size.`,node,
+          {kind:'content-role-font-size',role:role.name,minimumPx:minimum,maximumPx:maximum,tolerancePx:tolerance,measurements},
+          {expected:'Apply the configured size for this content role consistently across slides.',
+            impact:'Oversized or undersized solutions disrupt readability and question/answer hierarchy.',
+            suggestedAction:'Use a shared role style. Restructure crowded content instead of shrinking equations to fit.',
+            confidence:'Computed CSS base sizes in design pixels; structural scripts, fraction parts and nested roles excluded.',
+            verification:['Re-render every affected reveal state and check panel fit.','Review mathematical glyph sizes and supported viewport scaling.'],
+            constraints:['Preserve mathematical content and reveal order.','Not optical font-size certification; unmarked content may need explicit role annotations.']});
+      }
+    }
     const commonSafeguards=['Preserve mathematical values, units, diagrams and reveal order. Do not auto-fix lesson content.',
       'Compare like footer roles only; use a documented design exception for an intentional variation.'];
     if(settings.footersEnabled!==false){

@@ -1,5 +1,29 @@
 # Detailed validation rules
 
+## Content font-size hierarchy — B35-TYPE-001
+
+Lesson defaults enforce design CSS pixel sizes: heading 18, main question 24,
+worked solution 22, explanation/instructions 18, notes/checks 16, diagram labels
+14–16, citations 11. These defaults target the 960×540 lesson system. Scaling a
+slide does not change its design-size requirement. General HTML disables this
+lesson-specific policy by default.
+
+Configure `complementaryChecks.typographyHierarchy`: `enabled`, `tolerancePx`
+(default 0.5), and `roles` entries with `name`, `selector`, `sizePx` or
+`minimumPx`/`maximumPx`. Arrays replace defaults. Severity is configured through
+`policy.typographyHierarchySeverity` (default warning). Explicit
+`data-b35-content-role` wins over inferred roles; otherwise the first matching
+configured role wins. `.eq` takes precedence over `.step-solution`.
+
+The audit checks visible direct base text and descendants, excluding nested
+roles, fraction parts, superscripts, subscripts, radical indices, UI tags and
+watermarks. SVG radical text is excluded because its viewBox uses different
+coordinate units. Arbitrary graphics need review. A documented intentional
+exception may use `data-b35-allow-type-size` on its container. No lesson is edited
+automatically. Resize or restructure crowded content and recheck bounds; never
+shrink maths merely to remove overflow. This checks computed base size, not
+optical glyph height or actual font fallback.
+
 ## Radical construction — B35-MATH-020
 
 Split HTML `.root` components containing `.root-mark` or `.radicand` receive a
