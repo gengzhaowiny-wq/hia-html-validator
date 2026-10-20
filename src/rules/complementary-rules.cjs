@@ -149,6 +149,32 @@ function auditComplementaryChecks(config) {
 
     const symbols=settings.symbolRendering||{};
     if(symbols.enabled===false)continue;
+    // A split glyph + CSS border is fragile even with matching font weights.
+    // Declared SVG radicals expose geometry; neither check certifies optics.
+    if(symbols.radicalGeometryEnabled!==false){
+      for(const node of select(slide,'.root,svg[data-b35-diagram="radical"]')){
+        if(!visible(node)||node.closest('[data-b35-allow-radical-variation]'))continue;
+        const split=node.matches('.root')&&!!node.querySelector('.root-mark,.radicand');
+        const sign=node.querySelector('[data-b35-radical-sign]'),radicand=node.querySelector('[data-b35-radicand]');
+        let reason=split?'Radical uses a separate text glyph and CSS overbar.':null;
+        let measurement=null;
+        if(!split&&sign&&radicand){
+          const a=rect(sign),b=rect(radicand),v=node.getBoundingClientRect();
+          measurement={signBox:a,radicandBox:b,svgBox:rect(node)};
+          const t=limits.radicalGeometryTolerancePx??2;
+          if(b.top<a.top-t*scale||b.right>a.right+t*scale||b.bottom>a.bottom+t*scale||b.left<v.left-t*scale||b.right>v.right+t*scale)
+            reason='Radicand extends beyond its declared radical sign or SVG bounds.';
+        }else if(!split)reason='Declared SVG radical is missing sign or radicand geometry markers.';
+        if(reason)emit('B35-MATH-020',policy.radicalGeometrySeverity||'warning',reason,node,
+          {kind:'radical-construction',renderer:split?'split HTML/CSS':'declared SVG',measurement,visualAppearanceVerified:false},
+          {expected:'Use a coherent radical renderer with a continuous hook/overbar enclosing the complete radicand.',
+            impact:'Detached bars, oversized hooks or displaced radicands can make the expression ambiguous.',
+            suggestedAction:'Render the radical as one native math structure or one SVG; inspect hook/bar joins, stroke balance and radicand clearance at normal size.',
+            confidence:'Construction/geometry heuristic; native MathML and passing SVG geometry do not establish optical correctness.',
+            verification:['Review the complete expression at the intended viewport.','Check every reveal state and remeasure after fonts load.'],
+            constraints:['Do not change mathematical content.','No screenshot pixel analysis or automatic visual approval.']});
+      }
+    }
     const groups=new Map();
     for(const node of select(slide,symbols.selectors||'msqrt,mroot,mfrac,.root,.frac,[data-b35-math-symbol],svg text')){
       const rawBox=rect(node),rawStyle=getComputedStyle(node);
