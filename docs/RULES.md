@@ -164,6 +164,7 @@ The process exits with:
 | `B35-MATH-017` | A standalone teaching equation is consistently too small, even if its left/right font sizes match | Configurable readability warning |
 | `B35-MATH-018` | A standalone equation is split across HTML/renderer fragments, or is not wholly in the configured complete renderer (MathML by default) | Authoring-contract review warning |
 | `B35-MATH-019` | Radical/fraction-bar strokes lack current visual-review evidence, or an inspectable SVG stroke violates its declared range | Review-required warning; not pixel certification |
+| `B35-MATH-021` | Decimal-looking split tokens, terminal fraction punctuation, or an operator-free trailing three-digit group make numeric grouping ambiguous | Review warning; compare with source, never auto-concatenate operands |
 | `B35-LAYOUT-001` | Matching comparison cards have inconsistent role positions, formula heights or formula typography | Review warning |
 | `B35-LAYOUT-002` | Corresponding card footers, including plain text, differ in base font, size, weight, line-height or padding | Measured-style warning |
 | `B35-LAYOUT-003` | Footer heights/insets differ, or content is not centred under an explicit alignment contract | Geometry/estimated-content warning |
@@ -363,6 +364,21 @@ Add that entry to the existing configuration; the snippet alone is not a complet
 Strict checks cover the shaded proportion, partition count/equal sizes and an explicitly marked aggregate fraction label. A label for each individual unit should not be marked as the aggregate label. The reference model must be supplied by a reviewer; geometry matching it does not establish that the reference mathematics is correct.
 
 Without declarations, the validator only infers a model for a simple horizontal rectangular bar with a different-colour full-height shaded rectangle and a fraction label inside the shading. Proportion/partition disagreements produce **warnings**, never inferred-model errors. Arbitrary diagrams, pies, complex SVG paths or ambiguous semantic intent remain outside this rule's coverage. `data-b35-ignore-diagram-model` exempts an intentional exception.
+
+### Numeric token integrity — B35-MATH-021
+
+This bounded review check detects `<mn>1</mn><mo>.</mo><mn>10</mn>` rather
+than a single decimal `<mn>1.10</mn>`, a denominator ending in an isolated
+punctuation operator, and a fraction immediately followed by a three-digit
+number without an operator. The latter can reveal a truncated thousands
+group: an intended `3900/(22 000)` rendered as `(3900/22) 000`.
+
+These patterns are **warnings**, not proof of incorrect mathematics. Compare
+the original expression before editing: implicit multiplication or unusual
+decimal notation can be deliberate. Explicit multiplication and punctuation
+outside the fraction are not flagged. Hidden content is deferred; a
+documented `data-b35-allow-numeric-notation` marks an intentional exception.
+No operands are joined or rewritten automatically.
 
 ### Adjacent percentage additions — B35-DIAGRAM-004
 
