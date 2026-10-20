@@ -1,7 +1,7 @@
 "use strict";
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const {pathToFileURL}=require('node:url');const {chromium}=require('playwright');
-const {auditComplementaryChecks}=require('./complementary-rules.cjs');const config=require('./b35.rules.json');
+const {auditComplementaryChecks}=require('../src/rules/complementary-rules.cjs');const config=require('../config/b35.rules.json');
 const root='<math><msqrt><mn>25</mn></msqrt><mo>=</mo><mn>5</mn></math>';
 const fraction='<math><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>=</mo><mn>0.5</mn></math>';
 const wrap=(content,css='')=>`<!doctype html><html><head><style>*{box-sizing:border-box}body{margin:0;font:18px Arial}.slide{width:960px;height:540px;transform-origin:top left}.four{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{height:230px;padding:10px;display:flex;flex-direction:column;justify-content:space-between}.mini{height:64px;flex:none;padding:8px;display:flex;align-items:center;justify-content:center;text-align:center;font:700 18px/24px Arial}.content{display:block}math{font-size:inherit} ${css}</style></head><body><section id="fixture" class="slide active"><div class="hdr">Complementary check fixture</div>${content}</section></body></html>`;

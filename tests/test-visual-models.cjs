@@ -4,8 +4,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 const { chromium } = require("playwright");
-const { auditVisualModels } = require("./visual-model-rules.cjs");
-const config = require("./b35.rules.json");
+const { auditVisualModels } = require("../src/rules/visual-model-rules.cjs");
+const config = require("../config/b35.rules.json");
 
 const fraction = '<math><mfrac><mn>1</mn><mn>2</mn></mfrac></math>';
 const wrap = (content, style = "") => `<!doctype html><html><head><style>body{margin:0;font:24px Arial}.slide{width:960px;height:540px}math{font:inherit;display:inline-block}${style}</style></head><body><section class="slide active" id="fixture"><div class="hdr">Visual model regression</div>${content}</section></body></html>`;

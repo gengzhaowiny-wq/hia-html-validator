@@ -1,8 +1,8 @@
 # Detailed validation rules
 
-For installation and everyday use, start with [README.md](README.md). LLM assistants should also read [AGENTS.md](AGENTS.md).
+For installation and everyday use, start with [README.md](../README.md). LLM assistants should also read [AGENTS.md](../AGENTS.md).
 
-**Installable terminal package (v1.6.0):** see [installation and command-line guide](CLI_GUIDE.md). Run `hia-html-validator file.html`; auto mode selects the existing B35 lesson checks or a bounded general-HTML profile. Reports remain diagnostic, not automatic visual approval. The direct commands below retain the original lesson-only entry point.
+**Installable terminal package (v1.6.1):** see [installation and command-line guide](CLI_GUIDE.md). Run `hia-html-validator file.html`; auto mode selects the existing B35 lesson checks or a bounded general-HTML profile. Reports remain diagnostic, not automatic visual approval. The direct commands below retain the original lesson-only entry point.
 
 This package converts the automated parts of **B35. Manual lesson-compaction acceptance record** into repeatable checks for self-contained HTML lesson decks.
 
@@ -14,7 +14,7 @@ It deliberately does **not** claim that automation completes B35. Source fidelit
 npm install
 npx playwright install chromium
 npm run validate -- /absolute/path/to/lesson.html \
-  --config ./b35.rules.json \
+  --config ./config/b35.rules.json \
   --out ./results/lesson-name
 ```
 
@@ -22,7 +22,7 @@ For a source-only preflight, which does not render the deck:
 
 ```bash
 npm run validate -- /absolute/path/to/lesson.html \
-  --config ./b35.rules.json \
+  --config ./config/b35.rules.json \
   --out ./results/lesson-name-static \
   --static-only
 ```
@@ -183,7 +183,7 @@ Source rules are registered in `staticRuleRegistry`. Browser checks run in `runt
 }
 ```
 
-Configuration belongs in `b35.rules.json`. New thresholds and selectors can therefore be changed without editing the browser traversal logic.
+Configuration belongs in `config/b35.rules.json`. New thresholds and selectors can therefore be changed without editing the browser traversal logic.
 
 ## Formula typography and notation consistency
 
@@ -205,7 +205,7 @@ Examples:
 
 These style findings are **warnings by default**. An intentional teaching comparison may use different representations; record that choice and exempt its container with `data-b35-allow-mixed-notation`. Intentional typography differences can use `data-b35-allow-formula-style`. Intended blanks can use `data-b35-allow-empty-math`.
 
-Tune `formulaMaximumFontSizeRatio`, `formulaMinimumLineGapPx`, `formulaClippingTolerancePx`, the `formulaConsistency` selectors and aliases, and the formula-related severity entries in `b35.rules.json`. Font-family alias keys are lowercase, for example `{"times new roman":"serif","georgia":"serif"}` if those families are intentionally interchangeable in your design.
+Tune `formulaMaximumFontSizeRatio`, `formulaMinimumLineGapPx`, `formulaClippingTolerancePx`, the `formulaConsistency` selectors and aliases, and the formula-related severity entries in `config/b35.rules.json`. Font-family alias keys are lowercase, for example `{"times new roman":"serif","georgia":"serif"}` if those families are intentionally interchangeable in your design.
 
 Font comparisons use computed CSS font families and rendered sizes, not a guarantee about the actual fallback font selected for each glyph. The notation checks identify common presentation patterns; they do not prove mathematical equality or enforce identical representations where a conversion is the teaching goal. The equation-line check currently covers explicit `<br>` breaks in recognised formula blocks; arbitrary wrapping or independent SVG labels still require visual review.
 
@@ -317,7 +317,7 @@ The configured `pagePairs.boilerplateTexts` explicitly excludes two known generi
 
 The rule captures SVG/image DOM references, not pixel equivalence. A unique diagram prevents the warning. Identical DOM/reference fingerprints can support a candidate, but their actual teaching purpose and appearance still need review. CSS pseudo-element material and unrecognised custom question/answer components are limitations; configure selectors or retain manual review for such components.
 
-Configure question/answer/instruction selectors, explicit boilerplate and exempt slide IDs under `pagePairs` in `b35.rules.json`. Set `pagePairs.enabled` to `false` to disable the rule. For an intentional standalone pause/workspace, mark either page with `data-b35-keep-question-page` or `data-b35-allow-repeated-question`, or add its source slide ID to `pagePairs.exemptSlideIds`.
+Configure question/answer/instruction selectors, explicit boilerplate and exempt slide IDs under `pagePairs` in `config/b35.rules.json`. Set `pagePairs.enabled` to `false` to disable the rule. For an intentional standalone pause/workspace, mark either page with `data-b35-keep-question-page` or `data-b35-allow-repeated-question`, or add its source slide ID to `pagePairs.exemptSlideIds`.
 
 The warning is self-contained for a human or LLM: it names both displayed pages/source IDs, quotes the questions in `evidence`, identifies selectors and initial reveal states, explains why the pair may be redundant, and supplies `expected`, `impact`, `confidence`, `suggestedAction`, `verification`, and `constraints`. These fields are included in JSON and expanded in Markdown. They explicitly prohibit automatic deletion or merging and preserve mathematical content and delayed reveal order.
 

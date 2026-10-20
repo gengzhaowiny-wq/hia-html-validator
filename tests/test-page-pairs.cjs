@@ -4,8 +4,8 @@ const fs=require("node:fs");
 const path=require("node:path");
 const {pathToFileURL}=require("node:url");
 const {chromium}=require("playwright");
-const {normalizeQuestion,capturePagePairState,auditAdjacentQuestionPages}=require("./page-pair-rules.cjs");
-const config=require("./b35.rules.json");
+const {normalizeQuestion,capturePagePairState,auditAdjacentQuestionPages}=require("../src/rules/page-pair-rules.cjs");
+const config=require("../config/b35.rules.json");
 const results=[];
 const question="A worker earns $450 for a 40-hour week. Weekly pay rises by 10%, while hours fall by 10%. What is the new hourly wage?";
 function pair(){return [

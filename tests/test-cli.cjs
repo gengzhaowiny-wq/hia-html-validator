@@ -1,14 +1,15 @@
 "use strict";
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path'),os=require('node:os'),{spawnSync}=require('node:child_process');
-const {parse,enumerate,playwrightCli}=require('./html-cli.cjs'),{configuration,profileFor,merge}=require('./cli-support.cjs'),{sourceChecks}=require('./generic-html.cjs');
+const {parse,enumerate,playwrightCli}=require('../src/cli/index.cjs'),{configuration,profileFor,merge}=require('../src/core/cli-support.cjs'),{sourceChecks}=require('../src/validators/html.cjs');
+const pkg=require('../package.json');
 const temporary=fs.mkdtempSync(path.join(os.tmpdir(),'b35 cli test ')),tests=[];
 function test(name,fn){fn();tests.push(name);}
-const cli=path.join(__dirname,'html-cli.cjs');
+const cli=path.join(__dirname,'../bin/hia-html-validator.cjs');
 function command(args){const r=spawnSync(process.execPath,[cli,...args],{encoding:'utf8',timeout:30000});if(r.error)throw r.error;return r;}
 function fixture(name,body){const file=path.join(temporary,name);fs.writeFileSync(file,body);return file;}
 const doc=body=>`<!doctype html><html lang="en"><meta charset="utf-8"><title>CLI fixture</title><body>${body}</body></html>`;
 try{
- test('project identity and compatibility commands are consistent',()=>{const pkg=require('./package.json');assert.equal(pkg.name,'hia-html-validator');for(const name of ['hia-html-validator','html-validate-b35','b35-validate'])assert.equal(pkg.bin[name],'html-cli.cjs');assert.match(command(['--help']).stdout,/^hia-html-validator 1\.6\.0/);});
+ test('project identity and compatibility commands are consistent',()=>{assert.equal(pkg.name,'hia-html-validator');for(const name of ['hia-html-validator','html-validate-b35','b35-validate'])assert.equal(pkg.bin[name],'bin/hia-html-validator.cjs');assert.ok(command(['--help']).stdout.startsWith(`hia-html-validator ${pkg.version}`));});
  test('help parses',()=>assert.equal(parse(['--help']).help,true));
  test('missing option value rejects',()=>assert.throws(()=>parse(['x.html','--out']),/Missing value/));
  test('unknown flag rejects',()=>assert.throws(()=>parse(['--typo']),/Unknown/));
@@ -27,7 +28,7 @@ try{
  test('module/importmap/JSON scripts are not parsed as classic scripts',()=>assert.equal(sourceChecks(doc('<script type="module">export const x=1;</script><script type="application/ld+json">{"x":1}</script>')).length,0));
  test('broken classic JS is caught',()=>assert.ok(sourceChecks(doc('<script>const = ;</script>')).some(f=>f.rule==='HTML-SOURCE-002')));
  test('installed-style command help works without browser',()=>assert.equal(command(['--help']).status,0));
- test('version is reported',()=>assert.match(command(['--version']).stdout,/1\.6\.0/));
+ test('version is reported',()=>assert.equal(command(['--version']).stdout.trim(),pkg.version));
  test('setup resolves the real Playwright CLI despite package export restrictions',()=>{assert.ok(fs.existsSync(playwrightCli()));assert.equal(spawnSync(process.execPath,[playwrightCli(),'install','--help'],{encoding:'utf8'}).status,0);});
  test('missing input exits 2',()=>assert.equal(command([path.join(temporary,'missing.html')]).status,2));
  test('setup invalid arguments do not install',()=>assert.equal(command(['setup','--unknown']).status,2));

@@ -4,7 +4,7 @@ Install once, then run `hia-html-validator "your-file.html"` from Terminal. The 
 
 The package, project and primary command are named `hia-html-validator`. The earlier `html-validate-b35` and `b35-validate` commands remain compatibility aliases. Existing B35 rule IDs, configuration and report formats are unchanged.
 
-For a human-led installation, follow this README. For an LLM-led installation, ask the assistant to read [AGENTS.md](AGENTS.md), the standard agent-discovery filename, and follow the workflow there. The complete command reference is [CLI_GUIDE.md](CLI_GUIDE.md); detailed validation rules are in [RULES.md](RULES.md).
+For a human-led installation, follow this README. For an LLM-led installation, ask the assistant to read [AGENTS.md](AGENTS.md), the standard agent-discovery filename, and follow the workflow there. The complete command reference is [CLI_GUIDE.md](docs/CLI_GUIDE.md); detailed validation rules are in [RULES.md](docs/RULES.md).
 
 ## From this GitHub repository
 
@@ -14,11 +14,29 @@ With Node.js 20+, npm and Git available, install and run from the cloned source:
 git clone https://github.com/DannyDOK/hia-html-validator.git
 cd hia-html-validator
 npm ci
-node html-cli.cjs setup
-node html-cli.cjs "/absolute/path/to/input.html" --out "./results/input"
+node bin/hia-html-validator.cjs setup
+node bin/hia-html-validator.cjs "/absolute/path/to/input.html" --out "./results/input"
 ```
 
-Alternatively, download the `hia-html-validator-terminal-1.6.0.zip` file from [this repository](https://github.com/DannyDOK/hia-html-validator), unzip it, and follow its README. The repository includes source, tests and distribution documentation, but no private lesson files or validation reports. Run `npm test` to execute the regression suite. Repository access does not grant permission to publish the package to npm or change its licensing terms.
+To build the terminal installer from source, run `npm run package`. The ZIP and npm tarball are written to `dist/`; unzip the ZIP and follow its README. Generated archives are not kept in source control. The repository includes source, tests and distribution documentation, but no private lesson files or validation reports. Run `npm test` to execute the regression suite. Repository access does not grant permission to publish the package to npm or change its licensing terms.
+
+## Project structure
+
+```text
+bin/             Terminal command entry point
+src/cli/         Argument parsing and batch orchestration
+src/core/        Configuration, profile defaults and report helpers
+src/validators/  Lesson and general-HTML runners
+src/rules/       Reusable browser validation rules
+config/          Default rule configuration
+tests/           Regression and package smoke tests
+scripts/         Test runner, installer and release packaging
+docs/            Command reference, rule docs and contributor guides
+templates/       Manual acceptance record template
+dist/            Generated installer bundles (ignored by Git)
+```
+
+Start with [architecture](docs/ARCHITECTURE.md) and [contributing](docs/CONTRIBUTING.md) when extending the project. `html-cli.cjs` and `validate-b35.cjs` at the root are small compatibility entry points for older source-based workflows.
 
 ## 1. Install manually
 
@@ -54,7 +72,7 @@ export PATH="/absolute/path/to/validator-prefix/bin:$PATH"
 If only the npm tarball was supplied, install it without the wrapper:
 
 ```bash
-npm install --global --prefix "$HOME/.local" ./hia-html-validator-1.6.0.tgz
+npm install --global --prefix "$HOME/.local" ./hia-html-validator-1.6.1.tgz
 export PATH="$HOME/.local/bin:$PATH"
 hia-html-validator setup
 hia-html-validator doctor
@@ -64,16 +82,16 @@ The package is local/private, **not published to npm**. Do not substitute a regi
 
 ### From unpacked package/source files
 
-If this README is beside `package.json` and `html-cli.cjs`, rather than beside `install.sh`, run:
+If this README is beside `package.json` and `bin/`, rather than beside `install.sh`, run:
 
 ```bash
 npm install
-node html-cli.cjs setup
-node html-cli.cjs doctor
-node html-cli.cjs "/absolute/path/to/input.html" --out "./results/input"
+node bin/hia-html-validator.cjs setup
+node bin/hia-html-validator.cjs doctor
+node bin/hia-html-validator.cjs "/absolute/path/to/input.html" --out "./results/input"
 ```
 
-This works without a global command or shell PATH change. The older `npm run validate` entry point is lesson-only; use `html-cli.cjs` or the installed command for automatic/general-HTML profile selection.
+This works without a global command or shell PATH change. The older `npm run validate` entry point is lesson-only; use `bin/hia-html-validator.cjs` or the installed command for automatic/general-HTML profile selection.
 
 ## 2. Validate a file
 
@@ -148,4 +166,4 @@ Browser validation executes input JavaScript and allows external asset requests 
 
 If the browser is missing, run `hia-html-validator setup`. `doctor` checks availability, not successful browser launch: a real validation is the launch test. On Linux, `setup --with-deps` can require privileged system-library installation; arrange that explicitly rather than assuming permission.
 
-See [CLI_GUIDE.md](CLI_GUIDE.md) for troubleshooting, timeout settings, update/removal instructions and coverage details. See [RULES.md](RULES.md) for rule IDs, thresholds and extension points. See `VERIFICATION.md` in the installer bundle for the tested environment and results.
+See [CLI_GUIDE.md](docs/CLI_GUIDE.md) for troubleshooting, timeout settings, update/removal instructions and coverage details. See [RULES.md](docs/RULES.md) for rule IDs, thresholds and extension points, and [verification](docs/VERIFICATION.md) for the tested environment and results.

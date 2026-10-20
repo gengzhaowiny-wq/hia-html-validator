@@ -24,7 +24,7 @@ To retain that PATH in future terminals, add the export yourself to the startup 
 Already using a suitable npm global prefix? The package tarball alone can be installed with:
 
 ```bash
-npm install -g ./hia-html-validator-1.6.0.tgz
+npm install -g ./hia-html-validator-1.6.1.tgz
 hia-html-validator setup
 hia-html-validator doctor
 ```
@@ -125,7 +125,7 @@ The generated file contains minimal editable overrides and refuses to overwrite 
 }
 ```
 
-The full rule settings and browser-audit extension points remain in the included [rule documentation](RULES.md) and `b35.rules.json`. New logic can be added to the shipped rule modules with regression tests, then repackaged. This version does not load arbitrary external plugins from a config file. Trust any JavaScript rule extension as code. For symbol-review approvals, follow the evidence/fingerprint requirements in the rule documentation—do not manufacture an approval to remove a warning.
+The full rule settings and browser-audit extension points remain in the included [rule documentation](RULES.md) and `config/b35.rules.json`. New logic can be added to the shipped rule modules with regression tests, then repackaged. This version does not load arbitrary external plugins from a config file. Trust any JavaScript rule extension as code. For symbol-review approvals, follow the evidence/fingerprint requirements in the rule documentation—do not manufacture an approval to remove a warning.
 
 ## Troubleshooting and removal
 

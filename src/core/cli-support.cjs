@@ -1,6 +1,6 @@
 "use strict";
 const fs=require('node:fs'),path=require('node:path');
-const defaults=require('./b35.rules.json');
+const defaults=require('../../config/b35.rules.json');
 const clone=value=>JSON.parse(JSON.stringify(value));
 function merge(base,override){
  const out=clone(base);

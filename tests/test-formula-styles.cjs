@@ -3,8 +3,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("playwright");
-const { auditFormulaStyles } = require("./formula-style-rules.cjs");
-const config = require("./b35.rules.json");
+const { auditFormulaStyles } = require("../src/rules/formula-style-rules.cjs");
+const config = require("../config/b35.rules.json");
 
 const fraction = '<math><mfrac><mn>1</mn><mn>2</mn></mfrac></math>';
 const wrap = (content, extra = "") => `<!doctype html><html><head><style>body,math{font-family:Arial;font-size:24px}math{display:inline-block}body{margin:8px}</style></head><body><section class="slide active" id="fixture"><div class="hdr">Formula styles</div><div data-b35-formula ${extra}>${content}</div></section></body></html>`;

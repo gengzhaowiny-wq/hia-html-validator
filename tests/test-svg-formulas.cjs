@@ -4,8 +4,8 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { chromium } = require("playwright");
-const { auditSvgFormulas } = require("./svg-formula-rules.cjs");
-const config = require("./b35.rules.json");
+const { auditSvgFormulas } = require("../src/rules/svg-formula-rules.cjs");
+const config = require("../config/b35.rules.json");
 
 function fixture({ x = 150, y = 67, hidden = false, scale = 1, allowOverlap = false } = {}) {
   return `<!doctype html><html><body style="margin:0"><section class="slide active" id="fixture"><div class="hdr">Formula regression fixture</div>

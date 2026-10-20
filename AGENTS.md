@@ -12,13 +12,13 @@ These instructions help an LLM install and use this package. They apply to work 
 
 ## Read first
 
-Read README.md and CLI_GUIDE.md completely before installing or running the tool. Consult RULES.md for the relevant rule when interpreting, tuning or repairing a finding; do not guess what a rule proves. The standard executable is `hia-html-validator`; `html-validate-b35` and `b35-validate` remain compatibility aliases.
+Read README.md and docs/CLI_GUIDE.md completely before installing or running the tool. Consult docs/RULES.md for the relevant rule when interpreting, tuning or repairing a finding; do not guess what a rule proves. The standard executable is `hia-html-validator`; `html-validate-b35` and `b35-validate` remain compatibility aliases.
 
 ## Identify which distribution is present
 
-1. `install.sh` beside `hia-html-validator-1.6.0.tgz`: installer bundle.
+1. `install.sh` beside `hia-html-validator-1.6.1.tgz`: installer bundle.
 2. A tarball alone: install that exact local file using npm.
-3. `package.json` beside `html-cli.cjs`: package/source tree; use local npm installation and `node html-cli.cjs`.
+3. `package.json` beside `bin/`: package/source tree; use local npm installation and `node bin/hia-html-validator.cjs`.
 4. An installed command: check `--version` and `doctor`; avoid unnecessary reinstallation.
 
 Do not assume the archive, dependencies or command are in the current working directory. Resolve actual paths, quote every path, and use the package's own Playwright dependency rather than an unrelated global Playwright. This package is not published to a registry; do not fetch another package by name.
@@ -32,9 +32,9 @@ Do not assume the archive, dependencies or command are in the current working di
    Its default is `$HOME/.local`; `--prefix` supports a different approved location.
 4. Make a PATH change for this process/session only, or invoke the absolute executable path. Do not persist it in startup files without permission.
 5. For a tarball-only installation:
-   `npm install --global --prefix "$HOME/.local" "/absolute/path/to/hia-html-validator-1.6.0.tgz"`
+   `npm install --global --prefix "$HOME/.local" "/absolute/path/to/hia-html-validator-1.6.1.tgz"`
    Then invoke `"$HOME/.local/bin/hia-html-validator" setup`.
-6. For a source/package tree, run `npm install` there, then `node html-cli.cjs setup`; a global installation is unnecessary.
+6. For a source/package tree, run `npm install` there, then `node bin/hia-html-validator.cjs setup`; a global installation is unnecessary.
 7. Check `--version` and `doctor`. Then run an actual browser validation on an authorised trusted input; doctor alone is not a successful launch test.
 8. Installation needs network access. Browser setup uses a shared Playwright cache; do not delete it. If Linux system libraries need privileged installation, request human direction before `setup --with-deps`.
 
@@ -97,9 +97,17 @@ If the human asks to change validation rules, add proportional regression tests,
 
 ## Documentation and release work
 
+### Development layout
+
+The maintained executable is `bin/hia-html-validator.cjs`, backed by `src/cli/index.cjs`. Shared orchestration utilities live in `src/core/`; profile runners in `src/validators/`; independent browser audits in `src/rules/`. Defaults are in `config/b35.rules.json`, regression tests in `tests/`, and the manual acceptance template in `templates/`. Root `html-cli.cjs` and `validate-b35.cjs` are compatibility shims, not copies of the implementation.
+
+Read `docs/ARCHITECTURE.md` and `docs/CONTRIBUTING.md` before restructuring or extending code. Preserve rule IDs, evidence fields, command aliases, exit semantics and the trust boundary. Use `npm test` after runtime/path changes and `npm run test:package` after packaging changes. The package smoke test temporarily installs into an isolated prefix; it never changes the user's actual global prefix or shell configuration.
+
+Run `npm run package` to generate `dist/` bundles and checksums from the current package metadata. Do not hand-edit or commit generated archives, node_modules or test reports. Packaging requires npm, tar and zip; it does not publish anything. Do not move binaries back into the project root.
+
 A request to update documentation/packaging permits the relevant documentation, package file allowlist, archive, checksum and verification-note changes; it does not authorise unrelated code or lesson edits.
 
-README.md is the human entry point; AGENTS.md is the agent entry point; CLI_GUIDE.md is the command reference; RULES.md preserves detailed rule documentation. Keep these in both the installer bundle and npm tarball. Do not create conflicting case-only duplicates such as both AGENTS.md and agents.md.
+README.md is the human entry point; AGENTS.md is the agent entry point; docs/CLI_GUIDE.md is the command reference; docs/RULES.md preserves detailed rule documentation. Keep these in both the installer bundle and npm tarball. Do not create conflicting case-only duplicates such as both AGENTS.md and agents.md.
 
 When rebuilding a distribution:
 
