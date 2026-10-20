@@ -1,0 +1,16 @@
+node_modules/
+test-results/
+playwright-report/
+html-validation/
+*-b35-report/
+results/
+reports/
+outputs/
+work/
+lessons/
+private/
+*.log
+*.tgz
+.env
+.env.*
+.DS_Store

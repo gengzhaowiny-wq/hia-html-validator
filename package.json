@@ -1,0 +1,23 @@
+{
+  "name": "hia-html-validator",
+  "version": "1.6.0",
+  "private": true,
+  "description": "Command-line rendered HTML, SVG and maths checks, with full B35 lesson-deck validation",
+  "bin": { "hia-html-validator": "html-cli.cjs", "html-validate-b35": "html-cli.cjs", "b35-validate": "html-cli.cjs" },
+  "engines": { "node": ">=20" },
+  "files": ["html-cli.cjs", "generic-html.cjs", "cli-support.cjs", "validate-b35.cjs", "*-rules.cjs", "b35.rules.json", "README.md", "AGENTS.md", "CLI_GUIDE.md", "RULES.md", "VISUAL_REVIEW_RULES.md", "b35-acceptance-template.md", "run-tests.cjs", "test-*.cjs"],
+  "scripts": {
+    "validate": "node validate-b35.cjs",
+    "test": "node run-tests.cjs",
+    "test:svg": "node test-svg-formulas.cjs",
+    "test:styles": "node test-formula-styles.cjs",
+    "test:models": "node test-visual-models.cjs",
+    "test:visual-review": "node test-visual-review.cjs",
+    "test:page-pairs": "node test-page-pairs.cjs",
+    "test:complementary": "node test-complementary.cjs",
+    "test:cli": "node test-cli.cjs"
+  },
+  "dependencies": {
+    "playwright": "1.62.1"
+  }
+}

@@ -1,0 +1,87 @@
+"use strict";
+const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+const {pathToFileURL}=require('node:url');const {chromium}=require('playwright');
+const {auditComplementaryChecks}=require('./complementary-rules.cjs');const config=require('./b35.rules.json');
+const root='<math><msqrt><mn>25</mn></msqrt><mo>=</mo><mn>5</mn></math>';
+const fraction='<math><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>=</mo><mn>0.5</mn></math>';
+const wrap=(content,css='')=>`<!doctype html><html><head><style>*{box-sizing:border-box}body{margin:0;font:18px Arial}.slide{width:960px;height:540px;transform-origin:top left}.four{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{height:230px;padding:10px;display:flex;flex-direction:column;justify-content:space-between}.mini{height:64px;flex:none;padding:8px;display:flex;align-items:center;justify-content:center;text-align:center;font:700 18px/24px Arial}.content{display:block}math{font-size:inherit} ${css}</style></head><body><section id="fixture" class="slide active"><div class="hdr">Complementary check fixture</div>${content}</section></body></html>`;
+const cards=(contents=['x = 1','y = 2','z = 3','a = 4'])=>'<div class="four">'+contents.map((text,i)=>`<div class="card"><h3>Card ${i+1}</h3><div class="mini"><span class="content">${text}</span></div></div>`).join('')+'</div>';
+const clone=()=>structuredClone(config);
+(async()=>{const browser=await chromium.launch(),results=[];try{
+  const page=await browser.newPage({viewport:{width:1920,height:1080}});
+  async function check(name,html,verify,options=config){await page.setContent(html);await page.evaluate(()=>document.fonts.ready);const findings=await page.evaluate(auditComplementaryChecks,options);verify(findings);results.push({name,passed:true,findings});return findings;}
+  const has=(xs,rule)=>xs.some(x=>x.rule===rule);
+  await check('matching centred plain-text footers pass',wrap(cards()),xs=>assert.equal(xs.length,0));
+  await check('plain text versus maths-only footer size override is detected',wrap(cards(['x = 1','x = 2',root,root]),'.card:nth-child(-n+2) .mini{font-size:13px}'),xs=>assert.ok(has(xs,'B35-LAYOUT-002')));
+  await check('peer footer family mismatch warns',wrap(cards(),'.card:last-child .mini{font-family:Georgia}'),xs=>assert.ok(has(xs,'B35-LAYOUT-002')));
+  await check('peer footer weight mismatch warns',wrap(cards(),'.card:last-child .mini{font-weight:400}'),xs=>assert.ok(has(xs,'B35-LAYOUT-002')));
+  await check('peer footer line height mismatch warns',wrap(cards(),'.card:last-child .mini{line-height:30px}'),xs=>assert.ok(has(xs,'B35-LAYOUT-002')));
+  await check('peer footer padding mismatch warns',wrap(cards(),'.card:last-child .mini{padding:2px 7px}'),xs=>assert.ok(has(xs,'B35-LAYOUT-002')));
+  await check('uniform tiny footers violate the declared minimum',wrap(cards(),'.mini{font-size:13px}'),xs=>assert.ok(has(xs,'B35-LAYOUT-002')));
+  await check('same bottom edge does not excuse unequal footer heights',wrap(cards(),'.card:last-child .mini{height:40px}'),xs=>assert.ok(xs.find(x=>x.rule==='B35-LAYOUT-003').evidence.differences.includes('unequal footer heights')));
+  await check('equal left alignment violates an explicit centre contract',wrap(cards(),'.mini{justify-content:flex-start;text-align:left}'),xs=>assert.ok(xs.find(x=>x.rule==='B35-LAYOUT-003').evidence.differences.includes('content not horizontally centred')));
+  await check('top aligned content violates vertical centring',wrap(cards(),'.mini{align-items:flex-start}'),xs=>assert.ok(xs.find(x=>x.rule==='B35-LAYOUT-003').evidence.differences.includes('content not vertically centred')));
+  await check('footer bottom offset mismatch is detected',wrap(cards(),'.card:last-child{padding-bottom:18px}'),xs=>assert.ok(has(xs,'B35-LAYOUT-003')));
+  await check('footer horizontal insets are compared',wrap(cards(),'.card:last-child{padding-left:18px}'),xs=>assert.ok(has(xs,'B35-LAYOUT-003')));
+  const left=clone();delete left.complementaryChecks.footerGroups[0].alignment;
+  await check('left alignment is not forbidden without a centre contract',wrap(cards(),'.mini{justify-content:flex-start;text-align:left}'),xs=>assert.equal(has(xs,'B35-LAYOUT-003'),false),left);
+  await check('whole-slide enlargement preserves normalized geometry',wrap(cards(),'.slide{transform:scale(2)}'),xs=>assert.equal(xs.length,0));
+  await check('whole-slide reduction preserves normalized geometry',wrap(cards(),'.slide{transform:scale(.5)}'),xs=>assert.equal(xs.length,0));
+  await check('zoom does not hide inconsistent footer sizes',wrap(cards(),'.slide{transform:scale(2)}.card:last-child .mini{font-size:13px}'),xs=>assert.ok(has(xs,'B35-LAYOUT-002')));
+  await check('responsive two-row peers still have matching footer roles',wrap(cards(),'.four{grid-template-columns:repeat(2,1fr)}'),xs=>assert.equal(xs.length,0));
+  await check('different card headings are not footer typography',wrap(cards(),'.card:last-child h3{font:400 30px Georgia}'),xs=>assert.equal(xs.length,0));
+  await check('no footer roles means no footer assertions',wrap('<div class="four"><div class="card">A</div><div class="card">B</div></div>'),xs=>assert.equal(xs.length,0));
+  const missing=cards().replace('<div class="mini"><span class="content">a = 4</span></div>','');
+  await check('missing required footer warns at final state',wrap(missing),xs=>assert.ok(has(xs,'B35-LAYOUT-002')));
+  await check('explicit footer group cannot silently lose all footer roles',wrap('<div class="four" data-b35-footer-group><div class="card">A</div><div class="card">B</div></div>'),xs=>assert.ok(has(xs,'B35-LAYOUT-002')));
+  await check('hidden reveal is not treated as final missing content',wrap('<span id="step">Step 0 / 1</span>'+cards(),'.card:last-child .mini{visibility:hidden}'),xs=>assert.equal(has(xs,'B35-LAYOUT-002'),false));
+  await check('hidden group is ignored',wrap(cards(),'.four{visibility:hidden}'),xs=>assert.equal(xs.length,0));
+  await check('documented peer variation is respected',wrap(cards().replace('class="four"','class="four" data-b35-allow-footer-variation="intentional"'),'.card:last-child .mini{font-size:30px}'),xs=>assert.equal(xs.length,0));
+  const footerOff=clone();footerOff.complementaryChecks.footersEnabled=false;
+  await check('footer checks can be disabled independently',wrap(cards(),'.card:last-child .mini{font-size:30px}'),xs=>assert.equal(xs.length,0),footerOff);
+  const noType=clone();noType.policy.footerTypographySeverity='off';
+  await check('typography severity can be disabled independently',wrap(cards(),'.card:last-child .mini{font-weight:400}'),xs=>assert.equal(has(xs,'B35-LAYOUT-002'),false),noType);
+  const calibrated=clone();calibrated.thresholds.footerFontTolerancePx=6;calibrated.complementaryChecks.footerGroups[0].minimumFontSizePx=10;
+  await check('peer font tolerance and minimum are configurable',wrap(cards(),'.card:last-child .mini{font-size:13px}'),xs=>assert.equal(has(xs,'B35-LAYOUT-002'),false),calibrated);
+  await check('bold native radical remains unverified despite identical CSS weights',wrap('<div class="formula">'+root+'</div>','math,math *{font-weight:900}'),xs=>{const f=xs.find(x=>x.rule==='B35-MATH-019');assert.equal(f.evidence.visualWeightVerified,false);assert.equal(f.evidence.status,'review-required');assert.equal(f.evidence.symbols[0].fontWeight,'900');assert.equal(f.evidence.symbols[0].measuredStrokePx,null)});
+  await check('full MathML regular radical also needs genuine review',wrap('<div class="formula">'+root+'</div>'),xs=>assert.ok(has(xs,'B35-MATH-019')));
+  await check('fraction bar is not certified by matching fonts',wrap('<div class="formula">'+fraction+'</div>'),xs=>assert.equal(xs.find(x=>x.rule==='B35-MATH-019').evidence.symbols[0].kind,'fraction-bar'));
+  await check('nested roots are grouped into one equation review',wrap('<div class="formula"><math><msqrt><msqrt><mn>16</mn></msqrt></msqrt></math></div>'),xs=>{assert.equal(xs.length,1);assert.equal(xs[0].evidence.symbols.length,2)});
+  await check('plain digits have no structural-symbol review',wrap('<div class="formula">25 = 5 × 5</div>'),xs=>assert.equal(xs.length,0));
+  await check('SVG radical glyph also requires stroke review',wrap('<svg width="200" height="60"><text x="10" y="40">√25 = 5</text></svg>'),xs=>assert.ok(has(xs,'B35-MATH-019')));
+  await check('CSS roots are not mistaken for certified native glyphs',wrap('<div class="formula"><span class="root">√25</span> = 5</div>'),xs=>assert.ok(has(xs,'B35-MATH-019')));
+  await check('hidden symbols are ignored',wrap('<div class="formula" style="visibility:hidden">'+root+'</div>'),xs=>assert.equal(xs.length,0));
+  await check('HTML reviewed attribute cannot clear a warning',wrap('<div class="formula" data-b35-symbol-reviewed="true">'+root+'</div>'),xs=>assert.ok(has(xs,'B35-MATH-019')));
+  const svg='<div class="formula"><svg width="200" height="60"><rect id="bar" data-b35-math-symbol="fraction-bar" x="10" y="30" width="100" height=".5"/></svg></div>';
+  const stroke=clone();stroke.complementaryChecks.symbolRendering.strokeContracts=[{selector:'#bar',minimumPx:1}];
+  await check('inspectable SVG bar thickness is measured against its declared contract',wrap(svg),xs=>{const f=xs.find(x=>x.rule==='B35-MATH-019');assert.equal(f.evidence.status,'contract-unmet');assert.equal(f.evidence.symbols[0].measuredStrokePx,.5)},stroke);
+  await check('stroked horizontal SVG line is not discarded as zero height',wrap('<div class="formula"><svg width="200" height="60"><line data-b35-math-symbol="fraction-bar" x1="10" x2="110" y1="30" y2="30" stroke="black" stroke-width="2"/></svg></div>'),xs=>assert.equal(xs.find(x=>x.rule==='B35-MATH-019').evidence.symbols[0].measuredStrokePx,2));
+  await check('unpainted declared SVG symbol cannot silently pass',wrap(svg,'#bar{fill:none;stroke:none}'),xs=>assert.equal(xs.find(x=>x.rule==='B35-MATH-019').evidence.status,'contract-unmet'));
+  const noSymbols=clone();noSymbols.complementaryChecks.symbolRendering.enabled=false;
+  await check('symbol review can be disabled independently',wrap('<div class="formula">'+root+'</div>'),xs=>assert.equal(xs.length,0),noSymbols);
+  const first=await check('unreviewed symbol exposes reproducible evidence fingerprint',wrap('<div class="formula">'+root+'</div>'),xs=>assert.match(xs[0].evidence.fingerprint,/^symbol-v1-/));
+  const accepted=clone();accepted.complementaryChecks.symbolRendering.approvals=[{selector:first[0].selector,fingerprint:first[0].evidence.fingerprint,decision:'accepted',reviewer:'Synthetic test reviewer',reviewedAt:'2020-01-01T00:00:00Z',evidenceRef:'synthetic-test-evidence-only'}];
+  await check('explicit evidence-backed current review can clear pending review',wrap('<div class="formula">'+root+'</div>'),xs=>assert.equal(xs.length,0),accepted);
+  await check('changed equation invalidates previous review',wrap('<div class="formula">'+root.replace('25','36')+'</div>'),xs=>assert.ok(has(xs,'B35-MATH-019')),accepted);
+  await check('changed weight invalidates previous review',wrap('<div class="formula">'+root+'</div>','.formula,math{font-weight:900}'),xs=>assert.ok(has(xs,'B35-MATH-019')),accepted);
+  await check('changed font invalidates previous review',wrap('<div class="formula">'+root+'</div>','.formula,math{font-family:Georgia}'),xs=>assert.ok(has(xs,'B35-MATH-019')),accepted);
+  const incomplete=structuredClone(accepted);delete incomplete.complementaryChecks.symbolRendering.approvals[0].evidenceRef;
+  await check('approval without evidence cannot clear review',wrap('<div class="formula">'+root+'</div>'),xs=>assert.ok(has(xs,'B35-MATH-019')),incomplete);
+  const wrongDate=structuredClone(accepted);wrongDate.complementaryChecks.symbolRendering.approvals[0].reviewedAt='not-a-date';
+  await check('invalid review timestamp cannot clear review',wrap('<div class="formula">'+root+'</div>'),xs=>assert.ok(has(xs,'B35-MATH-019')),wrongDate);
+  for(const rule of ['B35-LAYOUT-002','B35-LAYOUT-003','B35-MATH-019']){
+    const findings=await check(rule+' supplies LLM-actionable evidence',wrap(cards(['x = 1','x = 2',root,root]),'.card:first-child .mini{font-size:13px;height:32px;justify-content:flex-start}'),xs=>assert.ok(has(xs,rule)));
+    const f=findings.find(x=>x.rule===rule);for(const field of ['selector','expected','impact','suggestedAction','confidence'])assert.ok(f[field]);assert.ok(f.verification.length>=2);assert.ok(f.constraints.length>=2);
+  }
+  const lessonIndex=process.argv.indexOf('--chapter8');
+  if(lessonIndex>=0){
+    await page.setViewportSize({width:960,height:540});await page.goto(pathToFileURL(path.resolve(process.argv[lessonIndex+1])).href);await page.evaluate(()=>document.fonts.ready);
+    await page.evaluate(()=>{page=slides.findIndex(s=>s.id==='s3');reveal=0;render()});
+    const found=await page.evaluate(auditComplementaryChecks,config);
+    for(const rule of ['B35-LAYOUT-002','B35-LAYOUT-003','B35-MATH-019'])assert.ok(has(found,rule));
+    assert.ok(found.filter(x=>x.rule==='B35-MATH-019').every(x=>x.evidence.visualWeightVerified===false));
+    results.push({name:'actual Chapter 8 page 3 triggers all three checks',passed:true,findings:found});
+  }
+  const outputIndex=process.argv.indexOf('--out');if(outputIndex>=0){const output=path.resolve(process.argv[outputIndex+1]);fs.mkdirSync(path.dirname(output),{recursive:true});fs.writeFileSync(output,JSON.stringify({passed:results.length,failed:0,results},null,2));}
+  console.log(JSON.stringify({passed:results.length,failed:0,tests:results.map(x=>x.name)},null,2));
+}finally{await browser.close();}})().catch(error=>{console.error(error);process.exitCode=1});
