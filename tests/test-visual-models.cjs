@@ -66,6 +66,25 @@ async function main() {
     await check("deliberate writing space is exempt", wrap('<div data-b35-composition-panel data-b35-allow-empty-space style="width:450px;height:420px">Question</div>'), (items) => assert.equal(has(items, "low-panel-occupancy"), false));
     await check("unused column bottom warns", wrap('<div data-b35-composition-columns style="display:flex"><div style="width:450px;height:420px">Small working at the top.</div></div>'), (items) => assert.equal(has(items, "column-bottom-whitespace"), true));
 
+    const addition=(percent=10,width=20,extra='')=>`<svg data-b35-diagram="percentage-change" width="400" height="160" ${extra}><rect data-b35-base x="10" y="20" width="200" height="60"/><rect data-b35-change="${percent}" x="210" y="20" width="${width}" height="60"/></svg>`;
+    await check('correct ten-percent addition passes',wrap(addition()),items=>assert.equal(items.some(i=>i.rule==='B35-DIAGRAM-004'),false));
+    await check('correct narrow five-percent addition passes',wrap(addition(5,10)),items=>assert.equal(items.some(i=>i.rule==='B35-DIAGRAM-004'),false));
+    await check('exaggerated addition is an error',wrap(addition(10,60)),items=>assert.ok(items.some(i=>i.evidence.kind==='percentage-change-ratio-mismatch'&&i.severity==='error')));
+    await check('addition with changed cross-section fails',wrap(addition().replace('width="20" height="60"','width="20" height="30"')),items=>assert.ok(has(items,'percentage-change-alignment-mismatch')));
+    await check('detached addition fails',wrap(addition().replace('x="210"','x="220"')),items=>assert.ok(has(items,'percentage-change-alignment-mismatch')));
+    await check('missing percentage reference fails',wrap(addition().replace('data-b35-base','data-unrelated')),items=>assert.ok(has(items,'percentage-change-missing-geometry')));
+    await check('invalid percentage fails',wrap(addition('not a percent')),items=>assert.ok(has(items,'percentage-change-invalid-model')));
+    await check('blank percentage is not zero',wrap(addition('')),items=>assert.ok(has(items,'percentage-change-invalid-model')));
+    await check('zero addition can have zero width',wrap(addition(0,0)),items=>assert.equal(items.some(i=>i.rule==='B35-DIAGRAM-004'),false));
+    await check('unannotated bars do not imply additions',wrap(addition(10,60).replace('data-b35-diagram="percentage-change"','')),items=>assert.equal(items.some(i=>i.rule==='B35-DIAGRAM-004'),false));
+    await check('hidden addition is deferred',wrap(addition(10,60,'style="display:none"')),items=>assert.equal(items.some(i=>i.rule==='B35-DIAGRAM-004'),false));
+    await check('hidden segment waits for its reveal',wrap(addition(10,60).replace('data-b35-change="10"','data-b35-change="10" style="visibility:hidden"')),items=>assert.equal(items.some(i=>i.rule==='B35-DIAGRAM-004'),false));
+    await check('uniform SVG scale preserves ratio',wrap(addition(10,20,'style="transform:scale(.7)"')),items=>assert.equal(items.some(i=>i.rule==='B35-DIAGRAM-004'),false));
+    await check('unsupported rotation is not certified',wrap(addition(10,20,'style="transform:rotate(15deg)"')),items=>assert.ok(has(items,'percentage-change-unsupported-geometry')));
+    const verticalAddition='<svg data-b35-diagram="percentage-change" data-b35-orientation="vertical" width="100" height="300"><rect data-b35-base x="10" y="10" width="60" height="200"/><rect data-b35-change="10" x="10" y="210" width="60" height="20"/></svg>';
+    await check('vertical addition passes',wrap(verticalAddition),items=>assert.equal(items.some(i=>i.rule==='B35-DIAGRAM-004'),false));
+    await check('intentional diagram exception stays documented',wrap(addition(10,60,'data-b35-ignore-diagram-model')),items=>assert.equal(items.some(i=>i.rule==='B35-DIAGRAM-004'),false));
+
     const lessonIndex = process.argv.indexOf("--lesson");
     if (lessonIndex >= 0) {
       await page.goto(pathToFileURL(path.resolve(process.argv[lessonIndex + 1])).href);

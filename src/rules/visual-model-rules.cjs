@@ -120,6 +120,40 @@ function auditVisualModels(config) {
           minimumInkHeightPx: thresholds.opticalFractionMinimumInkHeightPx ?? 7, minimumRelativeHeight: thresholds.opticalFractionMinimumRelativeHeight ?? 0.6 });
     }
 
+    // B35-DIAGRAM-004: explicitly declared additions to a 100% reference.
+    // Unlike a nested subgroup, the extra segment lies beside the base.
+    // No percentage or mathematical intent is inferred from arbitrary labels.
+    for(const svg of slide.querySelectorAll('svg[data-b35-diagram="percentage-change"]')){
+      if(!visible(svg)||svg.closest('[data-b35-ignore-diagram-model]'))continue;
+      const report=(kind,message,evidence={})=>emit('B35-DIAGRAM-004',config.policy.diagramModelSeverity||'error',message,svg,{
+        kind,source:'explicit percentage-change model',...evidence,
+        expected:'The added rectangular segment has the declared percentage of the 100% reference length, an equal cross-section, and an adjoining edge.',
+        suggestedAction:'Resize the added segment in proportion to the reference; move narrow-segment labels outside with a connector instead of exaggerating the area.',
+        verification:'Recheck all visible states, labels and source percentages after fonts settle. Geometry does not certify the premise, optical balance or mathematical answer.'});
+      const bases=[...svg.querySelectorAll('[data-b35-base]')],changes=[...svg.querySelectorAll('[data-b35-change]')];
+      if(bases.length!==1||!changes.length){report('percentage-change-missing-geometry','Declared percentage-change model needs exactly one base and at least one added segment.');continue;}
+      const base=bases[0],orientation=svg.getAttribute('data-b35-orientation')||'horizontal';
+      if(!shown(base))continue; // Reference/segments may be intentional reveals.
+      if(!['horizontal','vertical'].includes(orientation)){report('percentage-change-invalid-model','Percentage-change orientation must be horizontal or vertical.');continue;}
+      const shownChanges=changes.filter(shown),nodes=[base,...shownChanges];
+      if(nodes.some(n=>n.localName!=='rect'||!shown(n)||!n.getScreenCTM()||Math.abs(n.getScreenCTM().b)>1e-6||Math.abs(n.getScreenCTM().c)>1e-6||n.getScreenCTM().a<=0||n.getScreenCTM().d<=0)){
+        report('percentage-change-unsupported-geometry','Percentage-change geometry must use visible, axis-aligned rectangles with positive scale; review rotated, reflected or skewed models separately.');continue;
+      }
+      const b=base.getBoundingClientRect(),vertical=orientation==='vertical',length=vertical?b.height:b.width,cross=vertical?b.width:b.height;
+      if(length<=0||cross<=0){report('percentage-change-invalid-model','Percentage reference must have a positive measured length and cross-section.');continue;}
+      const slideScale=slide.offsetWidth?slide.getBoundingClientRect().width/slide.offsetWidth:1;
+      const tolerance=(thresholds.diagramGeometryTolerancePx??2)*slideScale;
+      for(const change of shownChanges){
+        const raw=change.getAttribute('data-b35-change'),percent=Number(raw),c=change.getBoundingClientRect();
+        if(!raw?.trim()||!Number.isFinite(percent)||percent<0){report('percentage-change-invalid-model','Added percentage must be an explicit finite, nonnegative number.',{segmentSelector:selector(change),declaredValue:raw});continue;}
+        const actualRatio=(vertical?c.height:c.width)/length,expectedRatio=percent/100;
+        if(Math.abs(actualRatio-expectedRatio)>(thresholds.percentageChangeRatioTolerance??.005))report('percentage-change-ratio-mismatch',`Added segment occupies ${(actualRatio*100).toFixed(2)}% of the reference length; declared percentage is ${percent}%.`,{segmentSelector:selector(change),actualRatio,expectedRatio,orientation});
+        const crossDifference=Math.abs((vertical?c.width:c.height)-cross),crossOffset=Math.abs((vertical?c.left:c.top)-(vertical?b.left:b.top));
+        const edgeGap=(vertical?c.top:c.left)-(vertical?b.bottom:b.right);
+        if(crossDifference>tolerance||crossOffset>tolerance||Math.abs(edgeGap)>tolerance)report('percentage-change-alignment-mismatch','Added segment does not share the reference cross-section and adjoining edge.',{segmentSelector:selector(change),crossDifferencePx:crossDifference/slideScale,crossOffsetPx:crossOffset/slideScale,edgeGapPx:edgeGap/slideScale,orientation});
+      }
+    }
+
     // B35-DIAGRAM-001: strict reviewer-declared fraction bars; conservative
     // warnings for simple unannotated bars with an explicit in-shade fraction.
     for (const svg of slide.querySelectorAll("svg")) {

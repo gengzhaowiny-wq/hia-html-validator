@@ -169,6 +169,7 @@ The process exits with:
 | `B35-LAYOUT-003` | Footer heights/insets differ, or content is not centred under an explicit alignment contract | Geometry/estimated-content warning |
 | `B35-DIAGRAM-001` | Declared fraction-bar geometry/labels contradict the model; also reviews narrowly inferred labelled bars | Declared model error; inferred review warning |
 | `B35-DIAGRAM-002` | Nested rectangles contradict declared percentages, or inferred labels suggest an ambiguous area representation | Declared model error; inferred review warning |
+| `B35-DIAGRAM-004` | An explicitly declared added-percentage segment has the wrong reference-length ratio or adjoining geometry | Declared model error; no label/intent inference |
 | `B35-DIAGRAM-003` | A diagram label is detached from its target without a verified connector, or a reference is missing | Review warning |
 | `B35-CONTENT-001` | A configured answer concept is absent from selected visible premises/context | Bounded-vocabulary review warning |
 | `B35-COMPOSITION-001` | Large panels have low content occupancy or columns leave substantial unused height | Final-state review warning |
@@ -362,6 +363,30 @@ Add that entry to the existing configuration; the snippet alone is not a complet
 Strict checks cover the shaded proportion, partition count/equal sizes and an explicitly marked aggregate fraction label. A label for each individual unit should not be marked as the aggregate label. The reference model must be supplied by a reviewer; geometry matching it does not establish that the reference mathematics is correct.
 
 Without declarations, the validator only infers a model for a simple horizontal rectangular bar with a different-colour full-height shaded rectangle and a fraction label inside the shading. Proportion/partition disagreements produce **warnings**, never inferred-model errors. Arbitrary diagrams, pies, complex SVG paths or ambiguous semantic intent remain outside this rule's coverage. `data-b35-ignore-diagram-model` exempts an intentional exception.
+
+### Adjacent percentage additions — B35-DIAGRAM-004
+
+For an explicit rectangular model of an addition to a 100% reference, declare
+`data-b35-diagram="percentage-change"` on the SVG, `data-b35-base` on its
+reference rectangle, and `data-b35-change="10"` on an adjoining rectangle
+representing an additional 10%. A 5% addition must have 5% of the reference
+length, not an exaggerated width chosen to fit its label. Put labels outside
+narrow segments with a connector. This applies equally to tax, interest,
+growth and other explicitly authored percentage models; no lesson IDs or
+financial vocabulary are assumed.
+
+The rule checks the rendered length ratio (default absolute ratio tolerance
+0.005), equal cross-section and adjoining edge. The default orientation is
+horizontal (addition to the right); `data-b35-orientation="vertical"` means
+addition below the base. Nonnegative finite percentages, including zero,
+are supported. Hidden entire models are deferred until visible. Missing,
+invalid, rotated, reflected or skewed geometry is reported rather than
+certified. Arbitrary unannotated bars do not imply this contract.
+
+Measurements test a declared mathematical model, not the correctness of its
+premise, text, optical appearance or accessibility. Existing documented
+`data-b35-ignore-diagram-model` exceptions remain available. The validator
+does not alter the diagram or infer a percentage from a label.
 
 ### Composition — B35-COMPOSITION-001
 
