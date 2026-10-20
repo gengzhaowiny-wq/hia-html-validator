@@ -1,5 +1,50 @@
 # Detailed validation rules
 
+## General lesson content contracts
+
+The following rules use shared component selectors or explicit declarations,
+never chapter names, slide IDs, page numbers or lesson wording. Defaults target
+HI Academy lessons; general HTML disables `contentQuality` by default.
+
+| Concern | Rule |
+|---|---|
+| Content outside its question/solution panel | B35-LAYOUT-004 |
+| Content crosses an unrelated panel | B35-LAYOUT-005 |
+| Large answer panel uses only a small top region | Existing B35-COMPOSITION-001: low occupancy / excessive bottom whitespace |
+| Wrong role-specific font, including numerator/denominator variables | B35-TYPE-002 |
+| Inconsistent role sizes across pages | B35-TYPE-001 |
+| Explanation visible before required working is ready | B35-REVEAL-002 |
+| Fragile radical construction / declared SVG bounds | B35-MATH-020, with B35-MATH-019 optical review |
+
+Configure `complementaryChecks.contentQuality` with `enabled`, `tolerancePx`,
+`panelSelectors`, `mathSelectors`, `mathFontFamily`, `proseSelectors`,
+`proseFontFamily`, and `revealDependencies`. Math defaults to Cambria Math;
+explicit prose roles default to Nunito. Both are configurable, not hard-coded
+universal font requirements. `B35-TYPE-002` checks computed primary declarations
+on visible text, including MathML fraction tokens. Actual glyph fallback is not
+verified. Decorative labels, script-size tokens and generated radical SVG text
+are excluded. Use `data-b35-allow-font-family` for a documented variation.
+
+Panel checks use rendered content bounds (text ranges, canvas metrics, MathML
+and graphic boxes), with tolerance in slide design pixels. Ancestor/descendant
+panels are not treated as unrelated overlaps. Intentional overlays may declare
+`data-b35-allow-content-overlap`. These warning heuristics are not pixel-perfect
+collision detection; bounding-box whitespace and complex diagrams need review.
+
+Reveal dependencies are explicit to avoid guessing pedagogical intent from
+English wording. For example, an explanation with `data-b35-after="#result"`
+must not be visible until the element `#result` is visible on the same slide.
+Alternatively configure `{ "selector": ".explanation", "after": ".working",
+"requireComplete": true }` to require all descendant reveal elements of the
+working container to be visible. Missing/invalid prerequisite selectors also
+report. Exceptions may use `data-b35-allow-reveal-order`. Unannotated semantic
+teaching order still needs review.
+
+Severities: `contentPanelBoundsSeverity`, `contentPanelOverlapSeverity`, and
+`requiredFontFamilySeverity` default to warning; `revealDependencySeverity`
+defaults to error. These contracts run at each visited state; composition
+occupancy is intentionally final-state only, so hidden answers are not penalised.
+
 ## Content font-size hierarchy — B35-TYPE-001
 
 Lesson defaults enforce design CSS pixel sizes: heading 18, main question 24,

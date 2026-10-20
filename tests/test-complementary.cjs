@@ -7,6 +7,8 @@ const fraction='<math><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>=</mo><mn>0.5</mn><
 const wrap=(content,css='')=>`<!doctype html><html><head><style>*{box-sizing:border-box}body{margin:0;font:18px Arial}.slide{width:960px;height:540px;transform-origin:top left}.four{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.card{height:230px;padding:10px;display:flex;flex-direction:column;justify-content:space-between}.mini{height:64px;flex:none;padding:8px;display:flex;align-items:center;justify-content:center;text-align:center;font:700 18px/24px Arial}.content{display:block}math{font-size:inherit} ${css}</style></head><body><section id="fixture" class="slide active"><div class="hdr">Complementary check fixture</div>${content}</section></body></html>`;
 const cards=(contents=['x = 1','y = 2','z = 3','a = 4'])=>'<div class="four">'+contents.map((text,i)=>`<div class="card"><h3>Card ${i+1}</h3><div class="mini"><span class="content">${text}</span></div></div>`).join('')+'</div>';
 const clone=()=>structuredClone(config);
+// Earlier suites isolate their own contracts; quality fixtures opt in below.
+config.complementaryChecks.contentQuality.enabled=false;
 (async()=>{const browser=await chromium.launch(),results=[];try{
   const page=await browser.newPage({viewport:{width:1920,height:1080}});
   async function check(name,html,verify,options=config){await page.setContent(html);await page.evaluate(()=>document.fonts.ready);const findings=await page.evaluate(auditComplementaryChecks,options);verify(findings);results.push({name,passed:true,findings});return findings;}
@@ -89,6 +91,22 @@ const clone=()=>structuredClone(config);
   await check('intentional type size exception respected',wrap('<div class="eq" data-b35-allow-type-size="cover example" style="font-size:34px">x = 1</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
   const hierarchyOff=clone();hierarchyOff.complementaryChecks.typographyHierarchy.enabled=false;
   await check('hierarchy can be disabled',wrap('<div class="eq" style="font-size:34px">x = 1</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false),hierarchyOff);
+  const quality=clone();quality.complementaryChecks.contentQuality.enabled=true;
+  await check('text ink outside a fixed-height panel is detected',wrap('<div class="card" style="height:22px;width:200px;padding:0"><div style="font-size:32px">Long working</div></div>'),xs=>assert.ok(has(xs,'B35-LAYOUT-004')),quality);
+  await check('content in one panel crossing an unrelated panel is detected',wrap('<div class="card" style="height:20px;width:300px;padding:0"><div style="font-size:36px">Working</div></div><div class="note" style="height:40px;width:300px;font-size:16px">Next explanation</div>'),xs=>assert.ok(has(xs,'B35-LAYOUT-005')),quality);
+  await check('ordinary nonoverlapping panels pass geometry checks',wrap('<div class="card">Working</div><div class="note" style="font-size:16px">Check</div>'),xs=>assert.equal(xs.some(x=>['B35-LAYOUT-004','B35-LAYOUT-005'].includes(x.rule)),false),quality);
+  await check('declared intentional overlap is respected',wrap('<div class="card" data-b35-allow-content-overlap="overlay example" style="height:12px;padding:0"><span style="font-size:36px">Working</span></div>'),xs=>assert.equal(xs.some(x=>['B35-LAYOUT-004','B35-LAYOUT-005'].includes(x.rule)),false),quality);
+  await check('wrong mathematical family is detected including denominator',wrap('<div class="eq" style="font:22px Cambria Math">x = <math style="font-family:Cambria Math"><mfrac><mn>3</mn><mi style="font-family:Arial">x</mi></mfrac></math></div>'),xs=>assert.ok(has(xs,'B35-TYPE-002')),quality);
+  await check('correct mathematical role family passes',wrap('<div class="eq" style="font:22px Cambria Math">x = 3</div>'),xs=>assert.equal(has(xs,'B35-TYPE-002'),false),quality);
+  await check('hidden font mismatch ignored',wrap('<div class="eq" style="visibility:hidden;font:22px Arial">x = 3</div>'),xs=>assert.equal(has(xs,'B35-TYPE-002'),false),quality);
+  await check('intentional font variation respected',wrap('<div class="eq" data-b35-allow-font-family="font comparison" style="font:22px Arial">x = 3</div>'),xs=>assert.equal(has(xs,'B35-TYPE-002'),false),quality);
+  await check('premature explanation dependency is detected',wrap('<div id="working" style="visibility:hidden">x = 3</div><p data-b35-after="#working">Collect the repeated object</p>'),xs=>assert.ok(has(xs,'B35-REVEAL-002')),quality);
+  await check('revealed prerequisite allows its explanation',wrap('<div id="working">x = 3</div><p data-b35-after="#working">Now explain</p>'),xs=>assert.equal(has(xs,'B35-REVEAL-002'),false),quality);
+  await check('missing prerequisite is actionable',wrap('<p data-b35-after="#missing">Explain</p>'),xs=>assert.ok(has(xs,'B35-REVEAL-002')),quality);
+  const complete=structuredClone(quality);complete.complementaryChecks.contentQuality.revealDependencies=[{selector:'.explanation',after:'#working',requireComplete:true}];
+  await check('unfinished working sequence blocks explanation',wrap('<div id="working">Question<span data-step="1" style="visibility:hidden">Result</span></div><p class="explanation">Explain</p>'),xs=>assert.ok(has(xs,'B35-REVEAL-002')),complete);
+  const custom=structuredClone(quality);custom.complementaryChecks.contentQuality.mathFontFamily='Arial';
+  await check('required maths family is configurable',wrap('<div class="eq" style="font:22px Arial">x = 3</div>'),xs=>assert.equal(has(xs,'B35-TYPE-002'),false),custom);
   const lessonIndex=process.argv.indexOf('--chapter8');
   if(lessonIndex>=0){
     await page.setViewportSize({width:960,height:540});await page.goto(pathToFileURL(path.resolve(process.argv[lessonIndex+1])).href);await page.evaluate(()=>document.fonts.ready);
