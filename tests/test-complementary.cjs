@@ -78,6 +78,17 @@ const clone=()=>structuredClone(config);
   await check('coherent SVG radical geometry does not trigger construction warning',wrap(radicalSvg),xs=>assert.equal(has(xs,'B35-MATH-020'),false));
   await check('radicand beyond bar is detected',wrap(radicalSvg.replace('x="22"','x="110"')),xs=>assert.ok(has(xs,'B35-MATH-020')));
   await check('documented radical construction exception is respected',wrap('<span class="root" data-b35-allow-radical-variation="notation comparison"><span class="root-mark">√</span><span class="radicand">x</span></span>'),xs=>assert.equal(has(xs,'B35-MATH-020'),false));
+  await check('role sizes match the agreed lesson hierarchy',wrap('<div class="prompt" style="font-size:24px">x = 1</div><div class="eq" style="font-size:22px">x = 1</div><div class="note" style="font-size:16px">Check</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
+  await check('oversized solution is detected',wrap('<div class="eq" style="font-size:34px">x = 1</div>'),xs=>assert.ok(has(xs,'B35-TYPE-001')));
+  await check('undersized solution is detected',wrap('<div class="eq" style="font-size:13px">x = 1</div>'),xs=>assert.ok(has(xs,'B35-TYPE-001')));
+  await check('scaled slide retains design font sizes',wrap('<div class="eq" style="font-size:22px">x = 1</div>','.slide{transform:scale(.5)}'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
+  await check('fraction and exponent reductions are structural',wrap('<div class="eq" style="font-size:22px">x<sup style="font-size:10px">2</sup> = <math><mfrac><mn>1</mn><mn>2</mn></mfrac></math></div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
+  await check('nested base text size override is detected',wrap('<div class="eq" style="font-size:22px">x = <span style="font-size:32px">1</span></div>'),xs=>assert.ok(has(xs,'B35-TYPE-001')));
+  await check('hidden oversized solution ignored',wrap('<div class="eq" style="visibility:hidden;font-size:34px">x = 1</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
+  await check('explicit role overrides inferred solution role',wrap('<div class="eq" data-b35-content-role="note" style="font-size:16px">x = 1</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
+  await check('intentional type size exception respected',wrap('<div class="eq" data-b35-allow-type-size="cover example" style="font-size:34px">x = 1</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false));
+  const hierarchyOff=clone();hierarchyOff.complementaryChecks.typographyHierarchy.enabled=false;
+  await check('hierarchy can be disabled',wrap('<div class="eq" style="font-size:34px">x = 1</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false),hierarchyOff);
   const lessonIndex=process.argv.indexOf('--chapter8');
   if(lessonIndex>=0){
     await page.setViewportSize({width:960,height:540});await page.goto(pathToFileURL(path.resolve(process.argv[lessonIndex+1])).href);await page.evaluate(()=>document.fonts.ready);

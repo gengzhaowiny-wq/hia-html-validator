@@ -97,6 +97,19 @@
     "spacingSelectors": ".card,.visual-card,.step-solution,[data-b35-spacing-group]"
   },
   "complementaryChecks": {
+    "typographyHierarchy": {
+      "enabled": true,
+      "tolerancePx": 0.5,
+      "roles": [
+        {"name":"heading","selector":".hdr,[data-b35-content-role=heading]","sizePx":18},
+        {"name":"question","selector":".prompt,[data-b35-content-role=question]","sizePx":24},
+        {"name":"solution","selector":".eq,.work,.practice-answer,[data-b35-content-role=solution]","sizePx":22},
+        {"name":"explanation","selector":".step-solution,.hint,[data-b35-content-role=explanation]","sizePx":18},
+        {"name":"note","selector":".note,.check,.warning,[data-b35-content-role=note]","sizePx":16},
+        {"name":"diagram-label","selector":"svg text,[data-b35-content-role=diagram-label]","minimumPx":14,"maximumPx":16},
+        {"name":"citation","selector":".book,[data-b35-content-role=citation]","sizePx":11}
+      ]
+    },
     "footersEnabled": true,
     "footerGroups": [
       {
@@ -126,6 +139,7 @@
     "states": ["initial", "middle", "final"]
   },
   "policy": {
+    "typographyHierarchySeverity": "warning",
     "legacyFractionRuntimeSeverity": "error",
     "legacyFractionSourceSeverity": "warning",
     "taskCardStyleSeverity": "error",
