@@ -43,7 +43,13 @@ function auditComplementaryChecks(config) {
         const style=getComputedStyle(node.parentElement);
         for(const match of node.textContent.matchAll(/\S+/g)){
           const range=document.createRange();range.setStart(node,match.index);range.setEnd(node,match.index+match[0].length);
-          for(const b of range.getClientRects()){
+          const fragments=[...range.getClientRects()];
+          // A hyphenated word may span lines. Each DOM fragment contains only
+          // part of the word: measuring the whole token at every fragment's
+          // origin invents ink beyond the panel. Keep the rendered fragment
+          // bounds rather than treating them as repeated complete tokens.
+          if(fragments.length>1){boxes.push(...fragments);methods.add('wrapped text range fragment fallback');continue;}
+          for(const b of fragments){
             if(!b.width||!b.height)continue;
             if(canvasContext){
               canvasContext.font=`${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;

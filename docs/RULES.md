@@ -416,6 +416,8 @@ The accessible SVG-name check is disabled through `svgAccessibleNameSeverity: "o
 
 ## Additional automated visual-review rules
 
+Content-bound checks (`B35-LAYOUT-004` / `005`) use rendered Range fragments for words that wrap across lines, including hyphenated words. They must not measure the entire word at every fragment origin, which invents horizontal overflow. Single-line tokens retain canvas ink estimates; genuinely unbreakable overflow is still reported. Fragment bounds are geometry, not pixel-level glyph certification.
+
 Version 1.1 adds the six checks documented in [VISUAL_REVIEW_RULES.md](VISUAL_REVIEW_RULES.md), including configuration, annotations, exceptions and coverage limits. They run automatically in the normal `validate` command; no separate review command or account is needed.
 
 They inspect rendered geometry and a configurable concept vocabulary, **not screenshot pixels**. The report now explicitly records `visualReviewCoverage`, and the gallery states that no AI image analysis is performed. A clean automated report still requires separate visual approval.

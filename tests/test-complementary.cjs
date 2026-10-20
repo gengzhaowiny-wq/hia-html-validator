@@ -92,6 +92,11 @@ config.complementaryChecks.contentQuality.enabled=false;
   const hierarchyOff=clone();hierarchyOff.complementaryChecks.typographyHierarchy.enabled=false;
   await check('hierarchy can be disabled',wrap('<div class="eq" style="font-size:34px">x = 1</div>'),xs=>assert.equal(has(xs,'B35-TYPE-001'),false),hierarchyOff);
   const quality=clone();quality.complementaryChecks.contentQuality.enabled=true;
+  for(const scale of [1,.5,2]){
+    const wrapped=wrap('<div class="card" style="width:120px;height:110px;padding:5px"><span style="font:24px Arial">equal-point ties</span></div>',`.slide{transform:scale(${scale})}`);
+    await check('wrapped hyphenated word uses fragment bounds at scale '+scale,wrapped,xs=>assert.equal(xs.some(x=>['B35-LAYOUT-004','B35-LAYOUT-005'].includes(x.rule)),false),quality);
+  }
+  await check('truly unbreakable horizontal overflow still detected',wrap('<div class="card" style="width:90px;height:110px;padding:5px"><span style="font:24px Arial;white-space:nowrap">equal-point ties</span></div>'),xs=>assert.ok(has(xs,'B35-LAYOUT-004')),quality);
   await check('text ink outside a fixed-height panel is detected',wrap('<div class="card" style="height:22px;width:200px;padding:0"><div style="font-size:32px">Long working</div></div>'),xs=>assert.ok(has(xs,'B35-LAYOUT-004')),quality);
   await check('content in one panel crossing an unrelated panel is detected',wrap('<div class="card" style="height:20px;width:300px;padding:0"><div style="font-size:36px">Working</div></div><div class="note" style="height:40px;width:300px;font-size:16px">Next explanation</div>'),xs=>assert.ok(has(xs,'B35-LAYOUT-005')),quality);
   await check('ordinary nonoverlapping panels pass geometry checks',wrap('<div class="card">Working</div><div class="note" style="font-size:16px">Check</div>'),xs=>assert.equal(xs.some(x=>['B35-LAYOUT-004','B35-LAYOUT-005'].includes(x.rule)),false),quality);
