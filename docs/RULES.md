@@ -1,5 +1,22 @@
 # Detailed validation rules
 
+## Radical construction — B35-MATH-020
+
+Split HTML `.root` components containing `.root-mark` or `.radicand` receive a
+construction warning: independently aligned glyphs and CSS borders need review.
+SVG radicals marked `data-b35-diagram="radical"` must identify the sign path with
+`data-b35-radical-sign` and radicand text with `data-b35-radicand`. Their rendered
+boxes are checked for radicands extending above/below the sign, beyond the bar,
+or horizontally outside the SVG. Missing markers also warn.
+
+Configure `complementaryChecks.symbolRendering.radicalGeometryEnabled` (default
+true), `thresholds.radicalGeometryTolerancePx` (default 2), and
+`policy.radicalGeometrySeverity` (default warning). An intentional construction
+comparison may use `data-b35-allow-radical-variation` with a documented reason.
+This heuristic does not measure screenshot pixels, hook/bar connectivity or
+optical stroke balance, and does not certify native MathML. Review the complete
+expression after fonts settle; existing B35-MATH-019 review gates remain active.
+
 For installation and everyday use, start with [README.md](../README.md). LLM assistants should also read [AGENTS.md](../AGENTS.md).
 
 **Installable terminal package (v1.6.1):** see [installation and command-line guide](CLI_GUIDE.md). Run `hia-html-validator file.html`; auto mode selects the existing B35 lesson checks or a bounded general-HTML profile. Reports remain diagnostic, not automatic visual approval. The direct commands below retain the original lesson-only entry point.

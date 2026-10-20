@@ -73,6 +73,11 @@ const clone=()=>structuredClone(config);
     const findings=await check(rule+' supplies LLM-actionable evidence',wrap(cards(['x = 1','x = 2',root,root]),'.card:first-child .mini{font-size:13px;height:32px;justify-content:flex-start}'),xs=>assert.ok(has(xs,rule)));
     const f=findings.find(x=>x.rule===rule);for(const field of ['selector','expected','impact','suggestedAction','confidence'])assert.ok(f[field]);assert.ok(f.verification.length>=2);assert.ok(f.constraints.length>=2);
   }
+  await check('split glyph radical receives actionable construction warning',wrap('<span class="root"><span class="root-mark">√</span><span class="radicand">x</span></span>'),xs=>assert.ok(has(xs,'B35-MATH-020')));
+  const radicalSvg='<svg data-b35-diagram="radical" width="100" height="40" viewBox="0 0 100 40"><path data-b35-radical-sign d="M1 20 L5 16 L10 30 L18 2 H98" fill="none" stroke="black"/><text data-b35-radicand x="22" y="26">x</text></svg>';
+  await check('coherent SVG radical geometry does not trigger construction warning',wrap(radicalSvg),xs=>assert.equal(has(xs,'B35-MATH-020'),false));
+  await check('radicand beyond bar is detected',wrap(radicalSvg.replace('x="22"','x="110"')),xs=>assert.ok(has(xs,'B35-MATH-020')));
+  await check('documented radical construction exception is respected',wrap('<span class="root" data-b35-allow-radical-variation="notation comparison"><span class="root-mark">√</span><span class="radicand">x</span></span>'),xs=>assert.equal(has(xs,'B35-MATH-020'),false));
   const lessonIndex=process.argv.indexOf('--chapter8');
   if(lessonIndex>=0){
     await page.setViewportSize({width:960,height:540});await page.goto(pathToFileURL(path.resolve(process.argv[lessonIndex+1])).href);await page.evaluate(()=>document.fonts.ready);
