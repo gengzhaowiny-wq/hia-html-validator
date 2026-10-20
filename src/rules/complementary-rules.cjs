@@ -81,6 +81,63 @@ function auditComplementaryChecks(config) {
       issues.push({rule,severity,message,slide:slide.id,runtimeSlide:slides.indexOf(slide)+1,
         header:(slide.querySelector(config.selectors.header)?.textContent||'').trim(),selector:pathFor(node),evidence,...guidance});
     };
+    const quality=settings.contentQuality;
+    if(quality?.enabled){
+      const tolerance=(quality.tolerancePx??2)*scale;
+      const guidance={expected:'Teaching content remains inside its own panel, clear of unrelated panels, with consistent declared fonts and reveal dependencies.',
+        impact:'Cross-panel text, inconsistent glyphs and premature explanations disrupt reading and teaching sequence.',
+        suggestedAction:'Repair the shared component layout or font role; reserve natural text height and reveal explanations only after their declared prerequisites.',
+        confidence:'Rendered DOM/content geometry and explicit contracts; not optical or semantic certification.',
+        verification:['Inspect every meaningful reveal at the intended viewport after fonts settle.','Recheck panel boundaries, mathematical notation and declared teaching order.'],
+        constraints:['Do not change mathematical values or auto-delete content.','Intentional variation requires a documented exception; no screenshot approval is inferred.']};
+      const panels=select(slide,quality.panelSelectors).filter(n=>visible(n)&&!n.closest('[data-b35-allow-content-overlap]'));
+      const samples=panels.map(node=>({node,box:rect(node),content:contentBounds(node,scale).box}));
+      for(const {node,box,content} of samples){
+        if(!content)continue;
+        const overflow={left:Math.max(0,box.left-content.left)/scale,right:Math.max(0,content.right-box.right)/scale,
+          top:Math.max(0,box.top-content.top)/scale,bottom:Math.max(0,content.bottom-box.bottom)/scale};
+        if(Object.values(overflow).some(v=>v>(quality.tolerancePx??2)))emit('B35-LAYOUT-004',policy.contentPanelBoundsSeverity||'warning',
+          'Rendered teaching content extends outside its panel.',node,{kind:'content-outside-panel',overflowPx:overflow,panelBox:box,contentBox:content},guidance);
+        for(const other of samples){
+          if(other.node===node||node.contains(other.node)||other.node.contains(node))continue;
+          // Normal labels that share a panel are excluded by ancestry. For
+          // unrelated panels inspect actual content, not only box edges.
+          const width=Math.min(content.right,other.box.right)-Math.max(content.left,other.box.left);
+          const height=Math.min(content.bottom,other.box.bottom)-Math.max(content.top,other.box.top);
+          if(width>tolerance&&height>tolerance)emit('B35-LAYOUT-005',policy.contentPanelOverlapSeverity||'warning',
+            'Teaching content overlaps another panel.',node,{kind:'content-cross-panel',otherSelector:pathFor(other.node),overlapPx:{width:width/scale,height:height/scale}},guidance);
+        }
+      }
+      const fontIgnore='sup,sub,.power,.tag,.answer-tag,.practice-num,.hi-wm,.nav,svg[data-b35-diagram="radical"]';
+      for(const [selectors,expectedFamily,role]of [[quality.mathSelectors,quality.mathFontFamily,'math'],[quality.proseSelectors,quality.proseFontFamily,'prose']]){
+        if(!selectors||!expectedFamily)continue;
+        const mismatches=new Map();
+        for(const owner of select(slide,selectors))for(const node of [owner,...owner.querySelectorAll('*')]){
+          if(!visible(node)||node.closest(fontIgnore)||node.closest('[data-b35-allow-font-family]'))continue;
+          if(![...node.childNodes].some(n=>n.nodeType===Node.TEXT_NODE&&n.textContent.trim()))continue;
+          const actual=getComputedStyle(node).fontFamily.split(',')[0].replace(/["']/g,'').trim();
+          if(actual.toLowerCase()!==expectedFamily.toLowerCase())mismatches.set(node,actual);
+        }
+        for(const [node,actual]of mismatches)emit('B35-TYPE-002',policy.requiredFontFamilySeverity||'warning',
+          `${role} text declares ${actual}; expected ${expectedFamily}.`,node,
+          {kind:'required-role-font-family',role,actualFamily:actual,expectedFamily,source:'computed primary declared family; fallback glyph font not verified'},guidance);
+      }
+      const dependencies=[...(quality.revealDependencies||[]),...select(slide,'[data-b35-after]').map(n=>({node:n,after:n.getAttribute('data-b35-after')}))];
+      for(const dependency of dependencies){
+        const targets=dependency.node?[dependency.node]:select(slide,dependency.selector);
+        for(const node of targets){
+          if(!visible(node)||node.closest('[data-b35-allow-reveal-order]'))continue;
+          let prerequisite=null;try{prerequisite=slide.querySelector(dependency.after);}catch{}
+          let reason=!prerequisite?'Missing or invalid reveal prerequisite.':!visible(prerequisite)?'Explanation is visible before its prerequisite.':null;
+          if(!reason&&dependency.requireComplete){
+            const pending=select(prerequisite,'[data-step]').filter(n=>!visible(n));
+            if(pending.length)reason='Explanation is visible before its prerequisite sequence is complete.';
+          }
+          if(reason)emit('B35-REVEAL-002',policy.revealDependencySeverity||'error',reason,node,
+            {kind:'declared-reveal-dependency',after:dependency.after,prerequisiteExists:!!prerequisite,requireComplete:!!dependency.requireComplete},guidance);
+        }
+      }
+    }
     const hierarchy=settings.typographyHierarchy;
     if(hierarchy?.enabled){
       const roles=hierarchy.roles||[],tolerance=hierarchy.tolerancePx??.5;

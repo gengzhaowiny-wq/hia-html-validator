@@ -97,6 +97,16 @@
     "spacingSelectors": ".card,.visual-card,.step-solution,[data-b35-spacing-group]"
   },
   "complementaryChecks": {
+    "contentQuality": {
+      "enabled": true,
+      "tolerancePx": 2,
+      "panelSelectors": ".card,.challenge-box,.step-solution,.practice-answer,.note,.rule,.warning,.check,[data-b35-content-panel]",
+      "mathSelectors": ".math,.eq,.formula,math,[data-b35-content-role=solution]",
+      "mathFontFamily": "Cambria Math",
+      "proseSelectors": "[data-b35-content-role=explanation],[data-b35-content-role=note]",
+      "proseFontFamily": "Nunito",
+      "revealDependencies": []
+    },
     "typographyHierarchy": {
       "enabled": true,
       "tolerancePx": 0.5,
@@ -140,6 +150,10 @@
   },
   "policy": {
     "typographyHierarchySeverity": "warning",
+    "contentPanelBoundsSeverity": "warning",
+    "contentPanelOverlapSeverity": "warning",
+    "requiredFontFamilySeverity": "warning",
+    "revealDependencySeverity": "error",
     "legacyFractionRuntimeSeverity": "error",
     "legacyFractionSourceSeverity": "warning",
     "taskCardStyleSeverity": "error",
