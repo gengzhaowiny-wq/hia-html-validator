@@ -136,6 +136,7 @@ The process exits with:
 | `B35-REVEAL-001` | Reveal steps are positive, contiguous and DOM-ordered | Automated |
 | `B35-PAGE-001` | Source-only standalone answer-page compaction candidate | Review warning |
 | `B35-PAGE-002` | Adjacent question-only page duplicates the worked page's initial state without detected unique first-page material | Cross-page review warning |
+| `B35-PAGE-003` | Prefer a single page with hidden solution for one repeated worked example; generic keep-page markers do not waive review | Cross-page review warning |
 | `B35-RUNTIME-001` | Exactly one active slide; navigator counter and step counter are correct | Automated |
 | `B35-CANVAS-001` | Slide/panel overflow, clipping and internal scrolling | Automated |
 | `B35-CANVAS-002` | Visible panels remain inside all four slide edges | Automated |
@@ -433,6 +434,16 @@ npm run test:visual-review -- \
 Use `npm test -- --lesson ... --repaired ...` to run all five suites. `--out /absolute/path/to/evidence.json` saves SVG-suite evidence and separate `-models` / `-visual-review` / `-page-pairs` evidence files; the style suite reports its results in the console.
 
 ## Adjacent question and worked-page duplication
+
+### One worked example per page where practical — B35-PAGE-003
+
+Prefer the complete question and its worked solution on one page, with the question visible at step zero and the working revealed in order. Do not spend a sparse question-only page on the same question that the next worked page already displays. A pause for student attempts can normally happen at the worked page's initial state.
+
+The enabled-by-default `pagePairs.singlePageExamplesEnabled` check applies to **one** exactly matched question on adjacent pages, not multi-question practice sets. It reuses PAGE-002's protections for unique instructions, diagrams, opaque media, mathematical notation and initially hidden answers. It emits one PAGE-003 review instead of a duplicate PAGE-002 finding for the same pair.
+
+Generic `data-b35-keep-question-page` / `data-b35-allow-repeated-question` markers do **not** suppress PAGE-003. They still apply to the legacy PAGE-002 check. A concrete split requirement may be documented with a nonempty `data-b35-split-example-reason` on either page, or via the existing configured slide exemptions. Document actual requirements (for example a separate timed assessment); do not apply a blanket reason merely to clear a report.
+
+This is a preference **warning**, not an automatic merge or a proof that content fits. Inspect all reveals at the target viewport and agreed font sizes. Preserve the question, meaningful instructions, diagrams, every working step and delayed answers. If the combined content is crowded, allow a justified continuation page; never shrink type or delete reasoning to force one page. Findings explicitly record `fitVerified: false`. A page with unmatched substantive material is conservatively retained for human review rather than treated as redundant.
 
 Version 1.2 adds `B35-PAGE-002`, enabled automatically during browser validation. It compares **settled initial states of adjacent runtime pages**, not adjacent source IDs (which can differ after runtime compaction).
 

@@ -10,7 +10,7 @@ const { auditFormulaStyles } = require("../rules/formula-style-rules.cjs");
 const { auditVisualModels } = require("../rules/visual-model-rules.cjs");
 const { auditVisualReview } = require("../rules/visual-review-rules.cjs");
 const { auditComplementaryChecks } = require("../rules/complementary-rules.cjs");
-const { capturePagePairState, auditAdjacentQuestionPages } = require("../rules/page-pair-rules.cjs");
+const { capturePagePairState, auditPagePairs } = require("../rules/page-pair-rules.cjs");
 
 const MANUAL_GATES = [
   ["source-fidelity", "Source fidelity, wording, mathematics, answers and diagrams checked against the authoritative source."],
@@ -486,7 +486,7 @@ async function runBrowserAudit(context) {
       await page.locator("#next").click();
     }
     if (guard >= 2000) findings.push(finding("B35-RUNTIME-001", "error", "Browser traversal exceeded 2000 states and was stopped."));
-    findings.push(...auditAdjacentQuestionPages(pagePairStates, context.config));
+    findings.push(...auditPagePairs(pagePairStates, context.config));
     pageErrors.forEach((message) => findings.push(finding("B35-RUNTIME-002", "error", `Page exception: ${message}`)));
     consoleErrors.forEach((message) => findings.push(finding("B35-RUNTIME-002", "error", `Console error: ${message}`)));
     failedRequests.forEach((request) => findings.push(finding("B35-RUNTIME-002", context.config.policy.externalRequestFailureSeverity, `Resource failed to load: ${request.url}`, { evidence: request })));

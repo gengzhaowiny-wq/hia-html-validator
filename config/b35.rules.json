@@ -71,6 +71,7 @@
   "diagramModels": [],
   "pagePairs": {
     "enabled": true,
+    "singlePageExamplesEnabled": true,
     "questionSelectors": ".prompt,.practice-question,[data-b35-question]",
     "answerSelectors": ".step-solution,.practice-answer,[data-role='answer'],[data-b35-answer]",
     "instructionSelectors": ".hint,.rule,.note,[data-b35-instruction]",

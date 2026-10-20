@@ -74,6 +74,7 @@ function capturePagePairState({ config, metadata }) {
     otherText: residual.join(" ").replace(/\s+/gu," ").trim(),
     graphics: media.map(node => node.outerHTML), opaqueContent,
     intentionalSeparate: slide.hasAttribute("data-b35-keep-question-page") || slide.hasAttribute("data-b35-allow-repeated-question"),
+    splitExampleReason: (slide.getAttribute("data-b35-split-example-reason") || "").trim(),
     evidenceStage: "settled-browser-initial-state"
   };
 }
@@ -126,4 +127,30 @@ function auditAdjacentQuestionPages(snapshots, config) {
   return findings;
 }
 
-module.exports = { normalizeQuestion, capturePagePairState, auditAdjacentQuestionPages };
+// A generic keep-question-page marker is not a reason to spend two pages on
+// one repeated example. Reuse the exact-content safeguards, without claiming
+// that DOM comparison proves a proposed merge fits at classroom font sizes.
+function auditSinglePageExamples(snapshots, config) {
+  if(config.pagePairs?.enabled===false || config.pagePairs?.singlePageExamplesEnabled===false)return [];
+  const candidates=snapshots.filter(Boolean).map(record=>({...record,intentionalSeparate:false}));
+  const byPage=new Map(candidates.map(record=>[record.runtimeSlide,record]));
+  return auditAdjacentQuestionPages(candidates,config).filter(finding=>{
+    const first=byPage.get(finding.runtimeSlide),next=byPage.get(finding.relatedLocations[0].runtimeSlide);
+    return first.questions.length===1 && !first.splitExampleReason && !next.splitExampleReason;
+  }).map(finding=>({...finding,rule:"B35-PAGE-003",
+    message:`Prefer one-page worked example: page ${finding.runtimeSlide} (${finding.slide}) repeats the single question on page ${finding.relatedLocations[0].runtimeSlide} (${finding.relatedLocations[0].slide}), whose answers are already hidden initially. Review consolidation into that worked page; no automatic merge or fit certification is performed.`,
+    expected:"Prefer one complete example per page: question visible initially, solution revealed in teaching order. Split only when readable content, a distinct diagram/task, or a documented teaching requirement needs it.",
+    suggestedAction:"Keep the complete question on the worked page and reveal its solution there if it fits at the agreed font sizes. Transfer any useful first-page instructions before removing a duplicate. Recheck every reveal, panel bounds and navigation. Do not shrink fonts, delete working or remove unique diagrams to force a fit. If splitting is necessary, document the concrete reason with data-b35-split-example-reason.",
+    confidence:"Exact adjacent single-question match with initially hidden working and no detected unique first-page content; fit and teaching purpose require rendered review.",
+    constraints:[...finding.constraints,"A generic keep-question-page marker alone does not exempt this preference review.","Distinct first-page instructions, graphics and opaque media remain protected by the exact-content safeguards."],
+    evidence:{...finding.evidence,kind:"prefer-single-page-example",fitVerified:false,
+      genericSeparateMarker:!!(snapshots.find(record=>record?.runtimeSlide===finding.runtimeSlide)?.intentionalSeparate)}
+  }));
+}
+
+function auditPagePairs(snapshots, config){
+  const preferred=auditSinglePageExamples(snapshots,config),pages=new Set(preferred.map(finding=>finding.runtimeSlide));
+  return [...auditAdjacentQuestionPages(snapshots,config).filter(finding=>!pages.has(finding.runtimeSlide)),...preferred];
+}
+
+module.exports = { normalizeQuestion, capturePagePairState, auditAdjacentQuestionPages, auditSinglePageExamples, auditPagePairs };

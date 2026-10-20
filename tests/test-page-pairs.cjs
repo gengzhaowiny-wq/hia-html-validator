@@ -4,7 +4,7 @@ const fs=require("node:fs");
 const path=require("node:path");
 const {pathToFileURL}=require("node:url");
 const {chromium}=require("playwright");
-const {normalizeQuestion,capturePagePairState,auditAdjacentQuestionPages}=require("../src/rules/page-pair-rules.cjs");
+const {normalizeQuestion,capturePagePairState,auditAdjacentQuestionPages,auditSinglePageExamples,auditPagePairs}=require("../src/rules/page-pair-rules.cjs");
 const config=require("../config/b35.rules.json");
 const results=[];
 const question="A worker earns $450 for a 40-hour week. Weekly pay rises by 10%, while hours fall by 10%. What is the new hourly wage?";
@@ -47,6 +47,25 @@ for(const key of ["message","expected","impact","confidence","suggestedAction","
 assert.match(specimen.message,/No automatic merge/);
 results.push({name:"warning contains self-contained LLM-actionable guidance",passed:true,findings:[specimen]});
 
+function preference(name,mutate,expected=0,options=config){const records=pair();mutate(records);const findings=auditSinglePageExamples(records,options);assert.equal(findings.length,expected,name);if(expected){assert.equal(findings[0].rule,'B35-PAGE-003');assert.equal(findings[0].evidence.fitVerified,false);}results.push({name,passed:true});}
+preference('single repeated example prefers same-page reveal',()=>{},1);
+preference('generic separate-page marker cannot hide preference review',r=>{r[0].intentionalSeparate=true;},1);
+preference('specific first-page split reason is respected',r=>{r[0].splitExampleReason='Timed assessment attempt followed by teacher modelling.';});
+preference('specific worked-page split reason is respected',r=>{r[1].splitExampleReason='Source comparison must remain on a separate board.';});
+preference('multiple-question practice boards are not single examples',r=>{for(const x of r)x.questions.push({text:'Second task',selector:'.second'});});
+preference('changed operand prevents same-page preference',r=>{r[1].questions[0].text=question.replace('450','460');});
+preference('unique diagram remains protected',r=>{r[0].graphics=['<svg>construction</svg>'];});
+preference('unique instruction remains protected',r=>{r[0].instructionTexts=['Draw a labelled table first.'];});
+preference('opaque first-page content remains protected',r=>{r[0].opaqueContent=true;});
+preference('visible answer is not hidden-work consolidation',r=>{r[1].visibleAnswerCount=1;});
+preference('non-adjacent example pages are not matched',r=>{r[1].runtimeSlide++;});
+const preferenceOff=structuredClone(config);preferenceOff.pagePairs.singlePageExamplesEnabled=false;
+preference('preference check can be independently disabled',()=>{},0,preferenceOff);
+preference('page-pair master switch disables preference too',()=>{},0,disabled);
+assert.deepEqual(auditPagePairs(pair(),config).map(f=>f.rule),['B35-PAGE-003']);
+assert.deepEqual(auditPagePairs(pair(),preferenceOff).map(f=>f.rule),['B35-PAGE-002']);
+results.push({name:'aggregate emits one actionable finding per pair and preserves legacy rule when preference disabled',passed:true});
+
 async function main(){
   const browser=await chromium.launch();
   try{
@@ -74,6 +93,11 @@ async function main(){
     assert.match(snapshots[0].questions[0].text,/math\(1 over 7\).*\^\(2\)/);
     assert.equal(auditAdjacentQuestionPages(snapshots,config).length,1);
     results.push({name:"browser capture preserves MathML meaning and superscript units",passed:true});
+    await page.evaluate(()=>{document.querySelector('#a').setAttribute('data-b35-split-example-reason','Independent timed assessment');});
+    await page.evaluate(()=>{document.querySelectorAll('.slide').forEach(n=>n.classList.toggle('active',n.id==='a'));});
+    const split=await page.evaluate(capturePagePairState,{config,metadata:{runtimeSlide:2,step:0,maxStep:2}});
+    assert.equal(split.splitExampleReason,'Independent timed assessment');
+    results.push({name:'browser captures concrete split reason without mutating lesson',passed:true});
     await page.setContent('<style>.slide{display:block}</style><section class="slide active" id="q"><div class="body"><p class="prompt">Question</p><p class="hint" style="display:none">Hidden extra</p></div></section>');
     const hidden=await page.evaluate(capturePagePairState,{config,metadata:{runtimeSlide:1,step:0,maxStep:0}});
     assert.deepEqual(hidden.instructionTexts,[]);
