@@ -162,7 +162,9 @@ function auditComplementaryChecks(config) {
           const a=rect(sign),b=rect(radicand),v=node.getBoundingClientRect();
           measurement={signBox:a,radicandBox:b,svgBox:rect(node)};
           const t=limits.radicalGeometryTolerancePx??2;
-          if(b.top<a.top-t*scale||b.right>a.right+t*scale||b.bottom>a.bottom+t*scale||b.left<v.left-t*scale||b.right>v.right+t*scale)
+          // Text line boxes may extend below the radical hook because of
+          // descenders/leading. Compare the bottom against the SVG instead.
+          if(b.top<a.top-t*scale||b.right>a.right+t*scale||b.bottom>v.bottom+t*scale||b.left<v.left-t*scale||b.right>v.right+t*scale)
             reason='Radicand extends beyond its declared radical sign or SVG bounds.';
         }else if(!split)reason='Declared SVG radical is missing sign or radicand geometry markers.';
         if(reason)emit('B35-MATH-020',policy.radicalGeometrySeverity||'warning',reason,node,
