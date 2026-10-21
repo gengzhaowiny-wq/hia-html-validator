@@ -12,7 +12,7 @@ npm test
 
 Tests use trusted, synthetic fixtures and launch Chromium. They require the package dependency and matching browser, not a running desktop Chrome. Optional tests with actual lesson paths are documented in RULES.md. Do not commit private lessons, reports or screenshots.
 
-Focused suites are available as `npm run test:cli`, `test:svg`, `test:styles`, `test:models`, `test:visual-review`, `test:page-pairs`, `test:complementary`, and `test:structure`. All are included in `npm test`. Tests return a nonzero status on failure.
+Focused suites are available as `npm run test:cli`, `test:svg`, `test:styles`, `test:models`, `test:visual-review`, `test:page-pairs`, `test:complementary`, `test:reusability`, and `test:structure`. All are included in `npm test`. Tests return a nonzero status on failure.
 
 For a new check, implement its browser audit under `src/rules/` (or source audit in the relevant runner), wire it into the correct profile, add configurable defaults under `config/`, and add positive, negative and intentional-exception regression cases. Preserve LLM-actionable location, observed/expected evidence, proposed action, verification and limitations. Do not clear warnings by weakening existing assertions.
 

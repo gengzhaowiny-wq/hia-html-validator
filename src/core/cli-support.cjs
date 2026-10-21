@@ -13,6 +13,7 @@ function merge(base,override){
 function configuration(file,profile,viewport){
  let config=clone(defaults);
  if(profile==='html'){
+  config.lessonReusability.enabled=false;
   config.viewport={width:1280,height:800};
     config.formulaConsistency.fullEquationMathML=false;
     config.complementaryChecks.typographyHierarchy.enabled=false;

@@ -137,6 +137,8 @@ The process exits with:
 | `B35-PAGE-001` | Source-only standalone answer-page compaction candidate | Review warning |
 | `B35-PAGE-002` | Adjacent question-only page duplicates the worked page's initial state without detected unique first-page material | Cross-page review warning |
 | `B35-PAGE-003` | Prefer a single page with hidden solution for one repeated worked example; generic keep-page markers do not waive review | Cross-page review warning |
+| `B35-CONTENT-002` | Teacher-only reveal, pacing or delivery directions leak into reusable student HTML | Text/metadata review warning |
+| `B35-CONTENT-003` | Potential learner-specific titles, metadata, references or named word-problem actors | Text/metadata review warning |
 | `B35-RUNTIME-001` | Exactly one active slide; navigator counter and step counter are correct | Automated |
 | `B35-CANVAS-001` | Slide/panel overflow, clipping and internal scrolling | Automated |
 | `B35-CANVAS-002` | Visible panels remain inside all four slide edges | Automated |
@@ -432,6 +434,34 @@ npm run test:visual-review -- \
 ```
 
 Use `npm test -- --lesson ... --repaired ...` to run all five suites. `--out /absolute/path/to/evidence.json` saves SVG-suite evidence and separate `-models` / `-visual-review` / `-page-pairs` evidence files; the style suite reports its results in the console.
+
+## Reusable, student-neutral lesson content
+
+`B35-CONTENT-002` flags bounded teacher-delivery cues such as “reveal one line at a time”, “ask the students…”, a named learner being asked to explain, pacing instructions and explicit `.teacher-note` / `data-b35-teacher-note` blocks. Student-facing mathematical hints and questions are not removed or inherently prohibited.
+
+`B35-CONTENT-003` reviews personalisation in browser titles (for example `Casey Y8`, `Casey’s maths lesson`, `Practice for Casey`), explicit student metadata (`meta[name="student-name"]`, `student`, `learner-name`), `data-student-name`, named-learner teacher directions, common named word-problem actor contexts, and configured exact name matches. Known mathematical names, pronouns and common topic/audience terms are protected from inferred-name matching. Add other legitimate terms under `allowedTerms`. Explicitly configured `studentNames` are still reported even if a name overlaps an otherwise protected term.
+
+These are **review warnings, not universal name recognition or identity verification**. An unknown name outside the recognised contexts can be missed, and a fictional/historical name can be a false positive. The policy is to keep reusable lesson HTML anonymous; replace a named story actor with a generic role while preserving the mathematics. Review source attribution and historical names before editing. There is no automatic deletion, anonymisation or privacy certification.
+
+Both checks run by default in the `lesson` profile. They inspect the active page’s authored text, including unrevealed text, at each visited reveal; unchanged findings are de-duplicated across steps. Global title/metadata are checked once on the first page. Accessibility labels and alternative text are included. Scripts, comments, external documents, unvisited dynamically generated text and unknown name contexts need separate review. Ordinary HTML websites do not inherit this classroom policy: use `lessonReusability.enabled: true` explicitly with the `html` profile if desired.
+
+```json
+{
+  "lessonReusability": {
+    "enabled": true,
+    "teacherDirectionsEnabled": true,
+    "personalisationEnabled": true,
+    "studentNames": ["Casey", "Jordan"],
+    "allowedTerms": ["Hypatia"]
+  },
+  "policy": {
+    "teacherDirectionSeverity": "warning",
+    "studentPersonalisationSeverity": "warning"
+  }
+}
+```
+
+No private student names are hardcoded in the defaults. Findings include the matched text, selector, active-page location, metadata attribute where relevant, expected policy, repair guidance, limits and verification steps. `evidence.automaticIdentityVerified` is always false. Quoted teaching directions remain reviewable rather than serving as an arbitrary exemption. Recheck all reveals and layout after any authorised cleanup. Run the focused synthetic regression suite with `npm run test:reusability`.
 
 ## Adjacent question and worked-page duplication
 

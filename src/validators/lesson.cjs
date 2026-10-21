@@ -11,6 +11,7 @@ const { auditVisualModels } = require("../rules/visual-model-rules.cjs");
 const { auditVisualReview } = require("../rules/visual-review-rules.cjs");
 const { auditComplementaryChecks } = require("../rules/complementary-rules.cjs");
 const { capturePagePairState, auditPagePairs } = require("../rules/page-pair-rules.cjs");
+const { auditLessonReusability } = require("../rules/reusability-rules.cjs");
 
 const MANUAL_GATES = [
   ["source-fidelity", "Source fidelity, wording, mathematics, answers and diagrams checked against the authoritative source."],
@@ -428,6 +429,7 @@ async function runBrowserAudit(context) {
   const pageErrors = [];
   const failedRequests = [];
   const pagePairStates = [];
+  const reusabilityFindingKeys = new Set();
   const screenshotDir = path.join(context.out, "screenshots");
   if (context.args.screenshots) fs.mkdirSync(screenshotDir, { recursive: true });
   try {
@@ -462,6 +464,10 @@ async function runBrowserAudit(context) {
       result.issues.push(...await page.evaluate(auditVisualModels, context.config));
       result.issues.push(...await page.evaluate(auditVisualReview, context.config));
       result.issues.push(...await page.evaluate(auditComplementaryChecks, context.config));
+      for(const item of await page.evaluate(auditLessonReusability, context.config)){
+        const key=JSON.stringify([item.rule,item.slide,item.selector,item.evidence.attribute,item.evidence.text]);
+        if(!reusabilityFindingKeys.has(key)){reusabilityFindingKeys.add(key);result.issues.push(item);}
+      }
       const meta = result.metadata;
       const stateKey = `${meta.runtimeSlide}:${meta.step}`;
       if (stateKey === previousKey) break;

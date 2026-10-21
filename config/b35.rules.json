@@ -69,6 +69,13 @@
     "fontFamilyAliases": {}
   },
   "diagramModels": [],
+  "lessonReusability": {
+    "enabled": true,
+    "teacherDirectionsEnabled": true,
+    "personalisationEnabled": true,
+    "studentNames": [],
+    "allowedTerms": []
+  },
   "pagePairs": {
     "enabled": true,
     "singlePageExamplesEnabled": true,
@@ -151,6 +158,8 @@
     "states": ["initial", "middle", "final"]
   },
   "policy": {
+    "teacherDirectionSeverity": "warning",
+    "studentPersonalisationSeverity": "warning",
     "typographyHierarchySeverity": "warning",
     "contentPanelBoundsSeverity": "warning",
     "contentPanelOverlapSeverity": "warning",
