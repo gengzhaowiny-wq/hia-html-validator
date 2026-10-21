@@ -90,6 +90,8 @@
     "exemptSlideIds": []
   },
   "visualReview": {
+    "questionPartsEnabled": true,
+    "questionPartSelectors": ".prompt,.practice-question,[data-b35-question],[data-b35-question-parts]",
     "formulaSelectors": ".formula,.work,[data-b35-formula]",
     "comparisonGroups": [],
     "nestedPercentages": [],

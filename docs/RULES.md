@@ -139,6 +139,7 @@ The process exits with:
 | `B35-PAGE-003` | Prefer a single page with hidden solution for one repeated worked example; generic keep-page markers do not waive review | Cross-page review warning |
 | `B35-CONTENT-002` | Teacher-only reveal, pacing or delivery directions leak into reusable student HTML | Text/metadata review warning |
 | `B35-CONTENT-003` | Potential learner-specific titles, metadata, references or named word-problem actors | Text/metadata review warning |
+| `B35-LAYOUT-006` | Consecutive lettered question tasks need explicit line breaks or separate block rows | Rendered-authoring review warning |
 | `B35-RUNTIME-001` | Exactly one active slide; navigator counter and step counter are correct | Automated |
 | `B35-CANVAS-001` | Slide/panel overflow, clipping and internal scrolling | Automated |
 | `B35-CANVAS-002` | Visible panels remain inside all four slide edges | Automated |
@@ -434,6 +435,14 @@ npm run test:visual-review -- \
 ```
 
 Use `npm test -- --lesson ... --repaired ...` to run all five suites. `--out /absolute/path/to/evidence.json` saves SVG-suite evidence and separate `-models` / `-visual-review` / `-page-pairs` evidence files; the style suite reports its results in the console.
+
+## Lettered question parts — B35-LAYOUT-006
+
+In reusable lesson questions, put the common stem once, followed by each `(a)`, `(b)`, `(c)`, `(d)` task on its own line. Both `(a)` and `a)` labels are recognised. A `<br>`, block row or vertical semantic list provides deliberate separation; ordinary source whitespace and natural wrapping at one viewport do not.
+
+This review warning is enabled by `visualReview.questionPartsEnabled` in lesson validation. The configured `questionPartSelectors` default to `.prompt,.practice-question,[data-b35-question],[data-b35-question-parts]`. It examines visible question text and CSS/DOM row boundaries. Mathematical renderer contents, function notation, lone labels and label-only references such as “use parts (a) and (b)” are conservatively excluded. Hidden tasks wait for their reveal. It recognises consecutive lowercase sequences starting with `a`; arbitrary numbering, generated custom labels and ambiguous prose still require review.
+
+Keep every operand, unit, task label, diagram and reveal in order. After inserting breaks, recheck the entire question/solution layout at the agreed font size. Do not shrink text or delete working to force a fit; allow a justified continuation page if needed. The rule does not fix HTML or certify optical layout. For an intentionally inline label-format comparison only, document the purpose using `data-b35-allow-inline-question-parts` and review it explicitly. Findings include the unseparated labels, text with explicit rows, proposed repair, safeguards and revalidation steps.
 
 ## Reusable, student-neutral lesson content
 

@@ -87,6 +87,48 @@ function auditVisualReview(config) {
     };
     const semantic="math,.frac,.katex,mjx-container";
 
+    // LAYOUT-006: lettered tasks need author-defined rows, not accidental
+    // soft wrapping at a particular viewport. Ignore algebra and references.
+    if(settings.questionPartsEnabled!==false){
+      const selector=settings.questionPartSelectors||'.prompt,.practice-question,[data-b35-question],[data-b35-question-parts]';
+      for(const root of slide.querySelectorAll(selector)){
+        if(!visible(root)||root.parentElement.closest(selector)||root.closest('[data-b35-allow-inline-question-parts]'))continue;
+        function rows(node){
+          if(node.nodeType===Node.TEXT_NODE){const s=getComputedStyle(node.parentElement);return /^(pre|pre-wrap|pre-line|break-spaces)$/.test(s.whiteSpace)?node.textContent:node.textContent.replace(/\s+/gu,' ');}
+          if(node.nodeType!==Node.ELEMENT_NODE||!shown(node)||node.matches('script,style,annotation,annotation-xml'))return '';
+          if(node.localName==='br')return '\n';
+          if(node.matches(semantic))return ' [math] ';
+          const block=/^(block|list-item|flex|grid|table-row|table-cell|table-caption|flow-root)$/.test(getComputedStyle(node).display);
+          const content=[...node.childNodes].map(rows).join('');return block?'\n'+content+'\n':content;
+        }
+        const text=rows(root),markers=[...text.matchAll(/(^|[\s:;,])(\(([a-z])\)|([a-z])\))/gu)].map(m=>({label:m[3]||m[4],offset:m.index+m[1].length,length:m[2].length}));
+        const failures=[];
+        for(let i=0;i<markers.length;i++){
+          if(markers[i].label!=='a')continue;
+          const parts=[markers[i]];let j=i+1;
+          while(j<markers.length&&markers[j].label.charCodeAt(0)===parts.at(-1).label.charCodeAt(0)+1)parts.push(markers[j++]);
+          if(parts.length<2)continue;
+          const tasks=parts.map((part,k)=>text.slice(part.offset+part.length,k+1<parts.length?parts[k+1].offset:text.length).trim());
+          // '(a), (b)' or 'parts (a) and (b)' are cross-references, not tasks.
+          if(tasks.some(task=>!/[\p{L}\p{N}]/u.test(task)||/^(?:and|or|with|to|versus|vs)[\s,;:.]*$/iu.test(task)))continue;
+          for(const part of parts){const prefix=text.slice(0,part.offset).split('\n').at(-1);if(prefix.trim())failures.push(part.label);}
+          i=j-1;
+        }
+        if(failures.length){
+          review('B35-LAYOUT-006','Lettered question parts must each start on an explicit new line or separate block.',root,
+            {kind:'inline-question-subparts',labelsWithoutOwnLine:[...new Set(failures)],textWithExplicitRows:text,source:'DOM BR/block boundaries and whitespace-preserving CSS; natural soft wrapping does not count'});
+          const finding=issues.at(-1);
+          if(finding?.rule==='B35-LAYOUT-006')Object.assign(finding,{
+            expected:'Present the stem once, then start each (a), (b), (c), (d) task on its own line using BRs, block rows or a vertical list.',
+            impact:'Inline subquestions are difficult to scan and can wrap into misleading groupings as the viewport or font changes.',
+            suggestedAction:'Insert an explicit line break or separate block before each labelled task, retaining all wording, values, units and labels. Recheck the full question and solution at classroom font sizes; use a justified continuation if necessary, not smaller type.',
+            confidence:'Consecutive lowercase lettered-task heuristic with DOM/CSS row boundaries, not optical or mathematical certification.',
+            verification:['Check every lettered task starts on its own line at the intended viewport.','Revalidate panel bounds, question/solution layout, fonts and reveal order.'],
+            constraints:['Detection only; no automatic rewriting, task deletion or forced one-page merge.','MathML algebra and label-only references are excluded; ambiguous prose requires review.','Use data-b35-allow-inline-question-parts only for an explicitly reviewed intentional notation comparison.']});
+        }
+      }
+    }
+
     // MATH-015: recognise soft wrapping inside a formula segment. Explicit BRs
     // and block rows form intentional segment boundaries, not automatic failures.
     const formulaSelector=settings.formulaSelectors||".formula,.work,[data-b35-formula]";

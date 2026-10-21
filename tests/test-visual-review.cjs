@@ -22,6 +22,24 @@ async function main(){
       const findings=await page.evaluate(auditVisualReview,options);verify(findings);results.push({name,passed:true,findings});
     }
     await check("one-line equation passes",wrap('<div class="formula">x + 2 = 4</div>'),none("B35-MATH-015"));
+    await check('inline question subparts warn',wrap('<p class="prompt">Find (a) the area, (b) the perimeter, (c) the ratio.</p>'),xs=>{const f=xs.find(x=>x.rule==='B35-LAYOUT-006');assert.deepEqual(f.evidence.labelsWithoutOwnLine,['a','b','c']);assert.ok(f.suggestedAction&&f.verification&&f.constraints);});
+    await check('explicit BR before every part passes',wrap('<p class="prompt">Find:<br>(a) the area<br>(b) the perimeter</p>'),none('B35-LAYOUT-006'));
+    await check('stem still needs a break before first task',wrap('<p class="prompt">Find (a) the area<br>(b) the perimeter</p>'),xs=>assert.deepEqual(xs.find(x=>x.rule==='B35-LAYOUT-006').evidence.labelsWithoutOwnLine,['a']));
+    await check('block question parts pass',wrap('<div class="prompt">Find:<div>(a) the area</div><div>(b) the perimeter</div></div>'),none('B35-LAYOUT-006'));
+    await check('vertical semantic list passes',wrap('<div data-b35-question-parts>Find:<ol type="a"><li>the area</li><li>the perimeter</li></ol></div>'),none('B35-LAYOUT-006'));
+    await check('a-close-parenthesis marker style is supported',wrap('<p class="prompt">a) Find x. b) Find y.</p>'),xs=>assert.ok(xs.some(x=>x.rule==='B35-LAYOUT-006')));
+    await check('inline wrappers do not create rows',wrap('<p class="prompt"><b>(a)</b> Find x. <b>(b)</b> Find y.</p>'),xs=>assert.ok(xs.some(x=>x.rule==='B35-LAYOUT-006')));
+    await check('natural wrapping is not explicit separation',wrap('<p class="prompt" style="width:75px">(a) Find the area of the rectangle. (b) Find its perimeter.</p>'),xs=>assert.ok(xs.some(x=>x.rule==='B35-LAYOUT-006')));
+    await check('normal whitespace newlines do not create rows',wrap('<p class="prompt">(a) Find x.\n(b) Find y.</p>'),xs=>assert.ok(xs.some(x=>x.rule==='B35-LAYOUT-006')));
+    await check('preserved newlines pass',wrap('<p class="prompt" style="white-space:pre-line">(a) Find x.\n(b) Find y.</p>'),none('B35-LAYOUT-006'));
+    await check('references to prior parts are not task lists',wrap('<p class="prompt">Compare parts (a) and (b).</p>'),none('B35-LAYOUT-006'));
+    await check('label-only reference list is ignored',wrap('<p class="prompt">Use (a), (b) and (c) to prove the result.</p>'),none('B35-LAYOUT-006'));
+    await check('function notation and grouped algebra are ignored',wrap('<p class="prompt">Find f(a) + f(b). Then simplify (a) + (b).</p>'),none('B35-LAYOUT-006'));
+    await check('MathML labels are not prose tasks',wrap('<p class="prompt"><math><mo>(</mo><mi>a</mi><mo>)</mo><mo>+</mo><mo>(</mo><mi>b</mi><mo>)</mo></math></p>'),none('B35-LAYOUT-006'));
+    await check('hidden task is deferred',wrap('<p class="prompt" style="visibility:hidden">(a) Find x. (b) Find y.</p>'),none('B35-LAYOUT-006'));
+    await check('documented inline notation comparison is honoured',wrap('<p class="prompt" data-b35-allow-inline-question-parts="comparison of label formats">(a) first label, (b) second label</p>'),none('B35-LAYOUT-006'));
+    const partsOff=structuredClone(config);partsOff.visualReview.questionPartsEnabled=false;
+    await check('question-parts check can be configured independently',wrap('<p class="prompt">(a) Find x. (b) Find y.</p>'),none('B35-LAYOUT-006'),partsOff);
     await check("soft-wrapped equation warns",wrap('<div class="formula" style="width:130px">discount amount = rate × original price</div>'),items=>assert.ok(has(items,"equation-soft-wrap")));
     await check("intentional BR equation rows pass",wrap('<div class="formula" style="width:200px">x + 2<br>= 4</div>'),none("B35-MATH-015"));
     await check("intentional block equation rows pass",wrap('<div class="formula"><div>x + 2</div><div>= 4</div></div>'),none("B35-MATH-015"));
