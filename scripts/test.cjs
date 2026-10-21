@@ -1,7 +1,7 @@
 "use strict";
 const path = require("node:path");
 const { spawnSync } = require("node:child_process");
-for (const file of ["test-structure.cjs", "test-svg-formulas.cjs", "test-formula-styles.cjs", "test-visual-models.cjs", "test-visual-review.cjs", "test-page-pairs.cjs", "test-complementary.cjs", "test-cli.cjs"]) {
+for (const file of ["test-structure.cjs", "test-svg-formulas.cjs", "test-formula-styles.cjs", "test-visual-models.cjs", "test-visual-review.cjs", "test-page-pairs.cjs", "test-complementary.cjs", "test-reusability.cjs", "test-cli.cjs"]) {
   const args = file === "test-formula-styles.cjs" ? [] : process.argv.slice(2);
   const outputIndex = args.indexOf("--out");
   if (["test-visual-models.cjs", "test-visual-review.cjs", "test-page-pairs.cjs", "test-complementary.cjs"].includes(file) && outputIndex >= 0) {

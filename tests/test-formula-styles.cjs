@@ -41,6 +41,18 @@ async function main() {
     await check("single semantic power style passes", wrap("x<sup>2</sup> = y<sup>2</sup>"), "B35-MATH-010", false);
     await check("empty fraction part fails", wrap('<math><mfrac><mrow></mrow><mn>2</mn></mfrac></math>'), "B35-MATH-011", true);
     await check("valid fraction passes", wrap(fraction), "B35-MATH-011", false);
+    await check('single decimal token passes numeric review',wrap('<math><mn>1.10</mn></math>'),'B35-MATH-021',false);
+    await check('split decimal operator warns',wrap('<math><mn>1</mn><mo>.</mo><mn>10</mn></math>'),'B35-MATH-021',true,'split-decimal-token');
+    await check('sentence punctuation inside denominator warns',wrap('<math><mfrac><mn>1</mn><mrow><mn>4</mn><mo>.</mo></mrow></mfrac></math>'),'B35-MATH-021',true,'fraction-terminal-punctuation');
+    await check('sentence punctuation outside fraction passes',wrap(fraction+'.'),'B35-MATH-021',false);
+    await check('truncated thousands group in MathML warns',wrap('<math><mrow><mfrac><mn>3900</mn><mn>22</mn></mfrac><mspace width=".2em"/><mn>000</mn></mrow></math>'),'B35-MATH-021',true,'fraction-followed-digit-group');
+    await check('truncated thousands group outside maths warns',wrap(fraction+' 000 × 100%'),'B35-MATH-021',true,'fraction-followed-digit-group');
+    await check('complete thousands denominator passes',wrap('<math><mfrac><mn>3900</mn><mn>22000</mn></mfrac></math>'),'B35-MATH-021',false);
+    await check('explicit multiplication by three digits passes',wrap('<math><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac><mo>×</mo><mn>300</mn></mrow></math>'),'B35-MATH-021',false);
+    await check('centred multiplication dot is not a decimal',wrap('<math><mn>1</mn><mo>·</mo><mn>10</mn></math>'),'B35-MATH-021',false);
+    await check('hidden numeric ambiguity is deferred',wrap('<math style="display:none"><mn>1</mn><mo>.</mo><mn>10</mn></math>'),'B35-MATH-021',false);
+    await check('hidden trailing digit group is deferred',wrap('<math><mfrac><mn>1</mn><mn>2</mn></mfrac><mn style="visibility:hidden">000</mn></math>'),'B35-MATH-021',false);
+    await check('documented implicit numeric notation is exempt',wrap('<math data-b35-allow-numeric-notation><mrow><mfrac><mn>1</mn><mn>2</mn></mfrac><mn>300</mn></mrow></math>'),'B35-MATH-021',false);
     await check("explicit exercise blank is exempt", wrap('<math data-b35-allow-empty-math><mfrac><mrow></mrow><mn>2</mn></mfrac></math>'), "B35-MATH-011", false);
     await check("renderer error fails", wrap('<math><merror><mtext>Invalid expression</mtext></merror></math>'), "B35-MATH-011", true);
     await check("formula clipping fails", wrap(`<div style="height:8px;overflow:hidden">${fraction}</div>`), "B35-MATH-012", true);

@@ -112,6 +112,37 @@ function auditFormulaStyles(config) {
     };
     const typographySeverity = config.policy.formulaTypographySeverity || "warning";
     const notationSeverity = config.policy.formulaNotationSeverity || "warning";
+    // Source-to-MathML conversions can preserve every digit yet change the
+    // intended number: e.g. 3900/(22 000) becomes (3900/22) followed by 000.
+    // These are ambiguity warnings, not mathematical proofs or auto-repairs.
+    const numericReview=(kind,message,node,evidence={})=>emit('B35-MATH-021',notationSeverity,message,node,{kind,...evidence},{
+      expected:'Preserve decimal numbers, grouped thousands and sentence punctuation as intended mathematical tokens.',
+      impact:'A visually tidy fraction can silently change a number if a grouped digit block or punctuation falls outside its intended operand.',
+      suggestedAction:'Compare with the authored expression. Keep a decimal inside one mn token; include all thousands groups in the intended numerator/denominator, or insert an explicit multiplication operator if multiplication was intended. Keep sentence punctuation outside the fraction.',
+      confidence:'Bounded token-pattern ambiguity heuristic; implicit multiplication and unusual notation may be intentional.',
+      verification:['Inspect the original wording and complete rendered equation.','Verify numerical values and grouping after the repair; do not concatenate operands automatically.'],
+      constraints:['Read-only detection; no automatic number edits.','A documented data-b35-allow-numeric-notation marks an intentional exception.']});
+    for(const dot of slide.querySelectorAll('math mo')){
+      if(!visible(dot)||dot.closest('[data-b35-allow-numeric-notation]')||dot.textContent!=='.')continue;
+      const a=dot.previousElementSibling,b=dot.nextElementSibling;
+      if(a?.localName==='mn'&&b?.localName==='mn'&&visible(a)&&visible(b)&&/^\d+$/.test(a.textContent)&&/^\d+$/.test(b.textContent))numericReview('split-decimal-token','A decimal-looking number uses a separate operator for its decimal point; confirm the intended tokenisation.',dot,{before:a.textContent,after:b.textContent});
+    }
+    for(const fraction of slide.querySelectorAll('mfrac')){
+      if(!visible(fraction)||fraction.closest('[data-b35-allow-numeric-notation]'))continue;
+      const denominator=fraction.children[1],last=denominator?.lastElementChild;
+      if(last?.localName==='mo'&&visible(last)&&/^[.,;]$/.test(last.textContent))numericReview('fraction-terminal-punctuation','Fraction denominator ends in an isolated punctuation operator; check whether sentence punctuation was captured.',fraction,{denominator:denominator.textContent});
+      let node=fraction,next=null;
+      while(node&&node.localName!=='math'){
+        next=node.nextSibling;
+        while(next&&(next.nodeType===3&&!next.textContent.trim()||next.nodeType===1&&next.localName==='mspace'))next=next.nextSibling;
+        if(next)break;node=node.parentElement;
+      }
+      if(!next&&node?.localName==='math'){
+        next=node.nextSibling;while(next?.nodeType===3&&!next.textContent.trim())next=next.nextSibling;
+      }
+      const digits=next?.nodeType===1&&!visible(next)?null:next?.nodeType===3?/^\s*(\d{3})(?!\d)/.exec(next.textContent)?.[1]:next?.localName==='mn'&&/^\d{3}$/.test(next.textContent)?next.textContent:null;
+      if(digits)numericReview('fraction-followed-digit-group','A fraction is immediately followed by a three-digit group without an operator; check for a truncated grouped operand or implicit multiplication.',fraction,{followingDigits:digits,denominator:denominator?.textContent});
+    }
     const explicit = settings.formulaSelectors || ".formula,.work,[data-b35-formula],[data-b35-formula-row]";
     const contexts = new Set([...slide.querySelectorAll(explicit)].filter(visible));
     for (const node of slide.querySelectorAll(".prompt,.step-solution,.practice-answer")) {

@@ -136,6 +136,9 @@ The process exits with:
 | `B35-REVEAL-001` | Reveal steps are positive, contiguous and DOM-ordered | Automated |
 | `B35-PAGE-001` | Source-only standalone answer-page compaction candidate | Review warning |
 | `B35-PAGE-002` | Adjacent question-only page duplicates the worked page's initial state without detected unique first-page material | Cross-page review warning |
+| `B35-PAGE-003` | Prefer a single page with hidden solution for one repeated worked example; generic keep-page markers do not waive review | Cross-page review warning |
+| `B35-CONTENT-002` | Teacher-only reveal, pacing or delivery directions leak into reusable student HTML | Text/metadata review warning |
+| `B35-CONTENT-003` | Potential learner-specific titles, metadata, references or named word-problem actors | Text/metadata review warning |
 | `B35-RUNTIME-001` | Exactly one active slide; navigator counter and step counter are correct | Automated |
 | `B35-CANVAS-001` | Slide/panel overflow, clipping and internal scrolling | Automated |
 | `B35-CANVAS-002` | Visible panels remain inside all four slide edges | Automated |
@@ -164,11 +167,13 @@ The process exits with:
 | `B35-MATH-017` | A standalone teaching equation is consistently too small, even if its left/right font sizes match | Configurable readability warning |
 | `B35-MATH-018` | A standalone equation is split across HTML/renderer fragments, or is not wholly in the configured complete renderer (MathML by default) | Authoring-contract review warning |
 | `B35-MATH-019` | Radical/fraction-bar strokes lack current visual-review evidence, or an inspectable SVG stroke violates its declared range | Review-required warning; not pixel certification |
+| `B35-MATH-021` | Decimal-looking split tokens, terminal fraction punctuation, or an operator-free trailing three-digit group make numeric grouping ambiguous | Review warning; compare with source, never auto-concatenate operands |
 | `B35-LAYOUT-001` | Matching comparison cards have inconsistent role positions, formula heights or formula typography | Review warning |
 | `B35-LAYOUT-002` | Corresponding card footers, including plain text, differ in base font, size, weight, line-height or padding | Measured-style warning |
 | `B35-LAYOUT-003` | Footer heights/insets differ, or content is not centred under an explicit alignment contract | Geometry/estimated-content warning |
 | `B35-DIAGRAM-001` | Declared fraction-bar geometry/labels contradict the model; also reviews narrowly inferred labelled bars | Declared model error; inferred review warning |
 | `B35-DIAGRAM-002` | Nested rectangles contradict declared percentages, or inferred labels suggest an ambiguous area representation | Declared model error; inferred review warning |
+| `B35-DIAGRAM-004` | An explicitly declared added-percentage segment has the wrong reference-length ratio or adjoining geometry | Declared model error; no label/intent inference |
 | `B35-DIAGRAM-003` | A diagram label is detached from its target without a verified connector, or a reference is missing | Review warning |
 | `B35-CONTENT-001` | A configured answer concept is absent from selected visible premises/context | Bounded-vocabulary review warning |
 | `B35-COMPOSITION-001` | Large panels have low content occupancy or columns leave substantial unused height | Final-state review warning |
@@ -363,6 +368,45 @@ Strict checks cover the shaded proportion, partition count/equal sizes and an ex
 
 Without declarations, the validator only infers a model for a simple horizontal rectangular bar with a different-colour full-height shaded rectangle and a fraction label inside the shading. Proportion/partition disagreements produce **warnings**, never inferred-model errors. Arbitrary diagrams, pies, complex SVG paths or ambiguous semantic intent remain outside this rule's coverage. `data-b35-ignore-diagram-model` exempts an intentional exception.
 
+### Numeric token integrity — B35-MATH-021
+
+This bounded review check detects `<mn>1</mn><mo>.</mo><mn>10</mn>` rather
+than a single decimal `<mn>1.10</mn>`, a denominator ending in an isolated
+punctuation operator, and a fraction immediately followed by a three-digit
+number without an operator. The latter can reveal a truncated thousands
+group: an intended `3900/(22 000)` rendered as `(3900/22) 000`.
+
+These patterns are **warnings**, not proof of incorrect mathematics. Compare
+the original expression before editing: implicit multiplication or unusual
+decimal notation can be deliberate. Explicit multiplication and punctuation
+outside the fraction are not flagged. Hidden content is deferred; a
+documented `data-b35-allow-numeric-notation` marks an intentional exception.
+No operands are joined or rewritten automatically.
+
+### Adjacent percentage additions — B35-DIAGRAM-004
+
+For an explicit rectangular model of an addition to a 100% reference, declare
+`data-b35-diagram="percentage-change"` on the SVG, `data-b35-base` on its
+reference rectangle, and `data-b35-change="10"` on an adjoining rectangle
+representing an additional 10%. A 5% addition must have 5% of the reference
+length, not an exaggerated width chosen to fit its label. Put labels outside
+narrow segments with a connector. This applies equally to tax, interest,
+growth and other explicitly authored percentage models; no lesson IDs or
+financial vocabulary are assumed.
+
+The rule checks the rendered length ratio (default absolute ratio tolerance
+0.005), equal cross-section and adjoining edge. The default orientation is
+horizontal (addition to the right); `data-b35-orientation="vertical"` means
+addition below the base. Nonnegative finite percentages, including zero,
+are supported. Hidden entire models are deferred until visible. Missing,
+invalid, rotated, reflected or skewed geometry is reported rather than
+certified. Arbitrary unannotated bars do not imply this contract.
+
+Measurements test a declared mathematical model, not the correctness of its
+premise, text, optical appearance or accessibility. Existing documented
+`data-b35-ignore-diagram-model` exceptions remain available. The validator
+does not alter the diagram or infer a percentage from a label.
+
 ### Composition — B35-COMPOSITION-001
 
 At the final reveal, large panels occupying at least **15%** of the slide are reviewed if text/graphic content boxes occupy less than **30%** of the panel. The area is a union of text and meaningful graphic boxes: empty card/SVG frames and watermarks do not inflate the teaching-content estimate. Columns leaving more than **40%** of their height unused below the last content box are also reviewed.
@@ -374,6 +418,8 @@ Run `npm run test:models -- --lesson /absolute/path/to/Y8_Ch07_Percentages.html`
 The accessible SVG-name check is disabled through `svgAccessibleNameSeverity: "off"`, reflecting the current scope. Contrast checks remain available as visual-legibility checks.
 
 ## Additional automated visual-review rules
+
+Content-bound checks (`B35-LAYOUT-004` / `005`) use rendered Range fragments for words that wrap across lines, including hyphenated words. They must not measure the entire word at every fragment origin, which invents horizontal overflow. Single-line tokens retain canvas ink estimates; genuinely unbreakable overflow is still reported. Fragment bounds are geometry, not pixel-level glyph certification.
 
 Version 1.1 adds the six checks documented in [VISUAL_REVIEW_RULES.md](VISUAL_REVIEW_RULES.md), including configuration, annotations, exceptions and coverage limits. They run automatically in the normal `validate` command; no separate review command or account is needed.
 
@@ -389,7 +435,45 @@ npm run test:visual-review -- \
 
 Use `npm test -- --lesson ... --repaired ...` to run all five suites. `--out /absolute/path/to/evidence.json` saves SVG-suite evidence and separate `-models` / `-visual-review` / `-page-pairs` evidence files; the style suite reports its results in the console.
 
+## Reusable, student-neutral lesson content
+
+`B35-CONTENT-002` flags bounded teacher-delivery cues such as “reveal one line at a time”, “ask the students…”, a named learner being asked to explain, pacing instructions and explicit `.teacher-note` / `data-b35-teacher-note` blocks. Student-facing mathematical hints and questions are not removed or inherently prohibited.
+
+`B35-CONTENT-003` reviews personalisation in browser titles (for example `Casey Y8`, `Casey’s maths lesson`, `Practice for Casey`), explicit student metadata (`meta[name="student-name"]`, `student`, `learner-name`), `data-student-name`, named-learner teacher directions, common named word-problem actor contexts, and configured exact name matches. Known mathematical names, pronouns and common topic/audience terms are protected from inferred-name matching. Add other legitimate terms under `allowedTerms`. Explicitly configured `studentNames` are still reported even if a name overlaps an otherwise protected term.
+
+These are **review warnings, not universal name recognition or identity verification**. An unknown name outside the recognised contexts can be missed, and a fictional/historical name can be a false positive. The policy is to keep reusable lesson HTML anonymous; replace a named story actor with a generic role while preserving the mathematics. Review source attribution and historical names before editing. There is no automatic deletion, anonymisation or privacy certification.
+
+Both checks run by default in the `lesson` profile. They inspect the active page’s authored text, including unrevealed text, at each visited reveal; unchanged findings are de-duplicated across steps. Global title/metadata are checked once on the first page. Accessibility labels and alternative text are included. Scripts, comments, external documents, unvisited dynamically generated text and unknown name contexts need separate review. Ordinary HTML websites do not inherit this classroom policy: use `lessonReusability.enabled: true` explicitly with the `html` profile if desired.
+
+```json
+{
+  "lessonReusability": {
+    "enabled": true,
+    "teacherDirectionsEnabled": true,
+    "personalisationEnabled": true,
+    "studentNames": ["Casey", "Jordan"],
+    "allowedTerms": ["Hypatia"]
+  },
+  "policy": {
+    "teacherDirectionSeverity": "warning",
+    "studentPersonalisationSeverity": "warning"
+  }
+}
+```
+
+No private student names are hardcoded in the defaults. Findings include the matched text, selector, active-page location, metadata attribute where relevant, expected policy, repair guidance, limits and verification steps. `evidence.automaticIdentityVerified` is always false. Quoted teaching directions remain reviewable rather than serving as an arbitrary exemption. Recheck all reveals and layout after any authorised cleanup. Run the focused synthetic regression suite with `npm run test:reusability`.
+
 ## Adjacent question and worked-page duplication
+
+### One worked example per page where practical — B35-PAGE-003
+
+Prefer the complete question and its worked solution on one page, with the question visible at step zero and the working revealed in order. Do not spend a sparse question-only page on the same question that the next worked page already displays. A pause for student attempts can normally happen at the worked page's initial state.
+
+The enabled-by-default `pagePairs.singlePageExamplesEnabled` check applies to **one** exactly matched question on adjacent pages, not multi-question practice sets. It reuses PAGE-002's protections for unique instructions, diagrams, opaque media, mathematical notation and initially hidden answers. It emits one PAGE-003 review instead of a duplicate PAGE-002 finding for the same pair.
+
+Generic `data-b35-keep-question-page` / `data-b35-allow-repeated-question` markers do **not** suppress PAGE-003. They still apply to the legacy PAGE-002 check. A concrete split requirement may be documented with a nonempty `data-b35-split-example-reason` on either page, or via the existing configured slide exemptions. Document actual requirements (for example a separate timed assessment); do not apply a blanket reason merely to clear a report.
+
+This is a preference **warning**, not an automatic merge or a proof that content fits. Inspect all reveals at the target viewport and agreed font sizes. Preserve the question, meaningful instructions, diagrams, every working step and delayed answers. If the combined content is crowded, allow a justified continuation page; never shrink type or delete reasoning to force one page. Findings explicitly record `fitVerified: false`. A page with unmatched substantive material is conservatively retained for human review rather than treated as redundant.
 
 Version 1.2 adds `B35-PAGE-002`, enabled automatically during browser validation. It compares **settled initial states of adjacent runtime pages**, not adjacent source IDs (which can differ after runtime compaction).
 

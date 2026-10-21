@@ -31,6 +31,7 @@
     "opticalFractionMaximumPeerRatio": 1.4,
     "diagramGeometryTolerancePx": 2,
     "diagramFractionRatioTolerance": 0.02,
+    "percentageChangeRatioTolerance": 0.005,
     "compositionMinimumPanelAreaRatio": 0.15,
     "compositionMinimumContentOccupancy": 0.3,
     "compositionMaximumBottomWhitespaceRatio": 0.4,
@@ -68,8 +69,16 @@
     "fontFamilyAliases": {}
   },
   "diagramModels": [],
+  "lessonReusability": {
+    "enabled": true,
+    "teacherDirectionsEnabled": true,
+    "personalisationEnabled": true,
+    "studentNames": [],
+    "allowedTerms": []
+  },
   "pagePairs": {
     "enabled": true,
+    "singlePageExamplesEnabled": true,
     "questionSelectors": ".prompt,.practice-question,[data-b35-question]",
     "answerSelectors": ".step-solution,.practice-answer,[data-role='answer'],[data-b35-answer]",
     "instructionSelectors": ".hint,.rule,.note,[data-b35-instruction]",
@@ -149,6 +158,8 @@
     "states": ["initial", "middle", "final"]
   },
   "policy": {
+    "teacherDirectionSeverity": "warning",
+    "studentPersonalisationSeverity": "warning",
     "typographyHierarchySeverity": "warning",
     "contentPanelBoundsSeverity": "warning",
     "contentPanelOverlapSeverity": "warning",

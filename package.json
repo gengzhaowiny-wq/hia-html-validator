@@ -17,6 +17,7 @@
     "test:visual-review": "node tests/test-visual-review.cjs",
     "test:page-pairs": "node tests/test-page-pairs.cjs",
     "test:complementary": "node tests/test-complementary.cjs",
+    "test:reusability": "node tests/test-reusability.cjs",
     "test:cli": "node tests/test-cli.cjs",
     "test:structure": "node tests/test-structure.cjs",
     "test:package": "node tests/test-package.cjs",
